@@ -35,7 +35,7 @@
   C.laneX = (i) => C.ROAD_L + C.LANE_W * (i + 0.5);
 
   const KEY = 'spyspacehunter.settings.v1';
-  const defaults = { master: 0.8, music: 0.6, sfx: 0.9, bloom: true, shake: true, reduced: false, mouseSteer: true, steerSens: 1, turboToggle: false };
+  const defaults = { master: 0.8, music: 0.6, sfx: 0.9, bloom: true, shake: true, reduced: false, mouseSteer: true, steerSens: 1, turboToggle: false, liteAudio: false };
 
   const S = Object.assign({}, defaults);
   let hadSaved = false;

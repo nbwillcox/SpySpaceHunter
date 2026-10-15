@@ -4,12 +4,16 @@
   'use strict';
   const S = G.settings;
   const A = { ctx: null, ready: false, sfx: {} };
-  let master, sfxBus, musicBus, noiseBuf, voices = 0, engOsc, engGain, engFilt;
+  let master, sfxBus, musicBus, noiseBuf, engOsc, engGain, engFilt, engT = 0;
   const last = {}, waves = {};
+  /* "simpler sound" setting: fewer layers and rarer effects, for machines that crackle */
+  const LITE_SKIP = { hit: 1, scr: 1, rum: 1, skid: 1, shh: 1, es: 1, ping: 1 };
 
   function gate(name, ms) {
+    const lite = !!S.liteAudio;
+    if (lite && LITE_SKIP[name]) return false;
     const now = performance.now();
-    if (now - (last[name] || 0) < ms) return false;
+    if (now - (last[name] || 0) < (lite ? ms * 1.8 : ms)) return false;
     last[name] = now;
     return true;
   }
@@ -18,14 +22,15 @@
     if (A.ctx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
-    try { A.ctx = new AC(); } catch (e) { return; }
+    /* run the whole graph at 48 kHz however fast the sound card is (a 192 kHz card would make every node four times as expensive); the browser resamples once at the very end */
+    try { A.ctx = new AC({ sampleRate: 48000, latencyHint: 'interactive' }); } catch (e) { try { A.ctx = new AC(); } catch (e2) { return; } }
     const ctx = A.ctx;
-    /* master chain: a fast limiter, then a gentle tanh soft-clipper so a pile-up of impacts saturates smoothly instead of crackling */
+    /* master chain: a gentle compressor that only catches pile-ups, then a mild tanh stage so any stray peak rounds off instead of clipping */
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 14; comp.attack.value = 0.002; comp.release.value = 0.16;
+    comp.threshold.value = -12; comp.knee.value = 14; comp.ratio.value = 6; comp.attack.value = 0.004; comp.release.value = 0.22;
     const clip = ctx.createWaveShaper(), curve = new Float32Array(1024);
-    for (let i = 0; i < curve.length; i++) { const x = i / (curve.length - 1) * 2 - 1; curve[i] = Math.tanh(x * 1.5) / Math.tanh(1.5); }
-    clip.curve = curve; clip.oversample = '2x';
+    for (let i = 0; i < curve.length; i++) curve[i] = Math.tanh(i / (curve.length - 1) * 2 - 1);
+    clip.curve = curve;
     const out = ctx.createGain(); out.gain.value = 0.9;
     master = ctx.createGain(); sfxBus = ctx.createGain(); musicBus = ctx.createGain();
     sfxBus.connect(master); musicBus.connect(master); master.connect(comp); comp.connect(clip); clip.connect(out); out.connect(ctx.destination);
@@ -33,6 +38,7 @@
     noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    buildPools();
     /* the engine: a soft low hum whose pitch follows your speed */
     engOsc = ctx.createOscillator(); engOsc.type = 'sawtooth'; engOsc.frequency.value = 70;
     engFilt = ctx.createBiquadFilter(); engFilt.type = 'lowpass'; engFilt.frequency.value = 260;
@@ -54,9 +60,12 @@
   };
   A.engine = function (norm, dmg, on) {
     if (!A.ready) return;
+    const now = performance.now();
+    if (now - engT < 60) return;                                       /* the game calls this every step; the hum only needs ~16 updates a second */
+    engT = now;
     const t = A.ctx.currentTime, wob = dmg > 55 ? (Math.random() - 0.5) * (dmg - 55) * 0.8 : 0;
-    engOsc.frequency.setTargetAtTime(52 + 46 * norm + wob, t, 0.08);
-    engGain.gain.setTargetAtTime(on ? 0.022 + 0.012 * norm : 0, t, 0.12);
+    engOsc.frequency.setTargetAtTime(52 + 46 * norm + wob, t, 0.1);
+    engGain.gain.setTargetAtTime(on ? 0.022 + 0.012 * norm : 0, t, 0.15);
   };
 
   /* ---------- primitives ---------- */
@@ -67,48 +76,83 @@
     return (waves[d] = A.ctx.createPeriodicWave(re, im));
   }
   const DUTY = { pulse12: 0.125, pulse25: 0.25, pulse50: 0.5 };
-  /* sound effects may not starve the music of voices (the music buses are not sfxBus) */
-  const full = (o) => voices > (o.bus ? 110 : 44);
   /* an impact briefly ducks the music so the hit stays clean and the mix cannot pile up */
   function duck(depth, dur) {
-    if (!A.ready || !musicBus) return;
+    if (!A.ready || !musicBus || S.liteAudio) return;
     const t = A.ctx.currentTime, base = S.music * 0.55;
     musicBus.gain.cancelScheduledValues(t); musicBus.gain.setValueAtTime(musicBus.gain.value, t);
     musicBus.gain.linearRampToValueAtTime(base * (1 - depth), t + 0.012); musicBus.gain.linearRampToValueAtTime(base, t + dur);
   }
+
+  /* VOICE POOLS. Creating and connecting audio nodes while the game runs makes the browser lock and rebuild the audio graph, and a burst of them (every collision) can make it skip a slice of
+     sound: that is the crackle. So every voice is built once, up front, runs silently forever, and a sound just re-tunes a free one and shapes its volume. No nodes are made or destroyed while you play. */
+  const sPool = { tone: {}, noise: {} }, mPool = { tone: {}, noise: {} };
+  function buildPools() {
+    const ctx = A.ctx;
+    const addTone = (pool, bus, ty, n) => {
+      const a = pool.tone[ty] = [];
+      for (let i = 0; i < n; i++) {
+        const osc = ctx.createOscillator(), g = ctx.createGain();
+        if (DUTY[ty]) osc.setPeriodicWave(pulseWave(DUTY[ty])); else osc.type = ty;
+        osc.frequency.value = 220; g.gain.value = 0;
+        osc.connect(g); g.connect(bus); osc.start();
+        a.push({ osc, gain: g, free: 0 });
+      }
+    };
+    const addNoise = (pool, bus, ty, n) => {
+      const a = pool.noise[ty] = [];
+      for (let i = 0; i < n; i++) {
+        const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+        src.buffer = noiseBuf; src.loop = true; f.type = ty; f.frequency.value = 1000; g.gain.value = 0;
+        src.connect(f); f.connect(g); g.connect(bus); src.start(0, Math.random() * (noiseBuf.duration - 0.2));
+        a.push({ src, filter: f, gain: g, free: 0 });
+      }
+    };
+    for (const [ty, n] of [['pulse12', 8], ['pulse25', 10], ['pulse50', 8], ['triangle', 3], ['sine', 2]]) addTone(sPool, sfxBus, ty, n);
+    for (const [ty, n] of [['lowpass', 8], ['highpass', 5], ['bandpass', 5]]) addNoise(sPool, sfxBus, ty, n);
+    for (const [ty, n] of [['pulse12', 8], ['pulse25', 8], ['pulse50', 8], ['triangle', 6], ['sine', 3]]) addTone(mPool, musicBus, ty, n);
+    for (const [ty, n] of [['lowpass', 3], ['highpass', 6]]) addNoise(mPool, musicBus, ty, n);
+  }
+  /* a voice that is free from time t on (the longest-idle one); null if every voice of that kind is busy, and then the sound is simply skipped */
+  function take(list, t, end) {
+    let best = null;
+    for (let i = 0; i < list.length; i++) { const v = list[i]; if (v.free <= t && (!best || v.free < best.free)) best = v; }
+    if (best) best.free = end;
+    return best;
+  }
+  function startTime(o) {
+    const now = A.ctx.currentTime + 0.004, t = o.at !== undefined ? o.at : A.ctx.currentTime + (o.delay || 0);
+    return t < now ? now : t;
+  }
   function tone(o) {
-    if (!A.ready || full(o)) return;
-    const ctx = A.ctx, t = o.at !== undefined ? o.at : ctx.currentTime + (o.delay || 0);
-    const osc = ctx.createOscillator(), g = ctx.createGain(), ty = o.type || 'pulse50';
-    if (DUTY[ty]) osc.setPeriodicWave(pulseWave(DUTY[ty])); else osc.type = ty;
-    osc.frequency.setValueAtTime(o.f0, t);
-    if (o.f1 && o.f1 !== o.f0) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.f1), t + o.dur);
-    const v = o.vol === undefined ? 0.2 : o.vol;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(v, t + (o.attack || 0.002));
-    if (o.sustain) { g.gain.setValueAtTime(v * o.sustain, t + o.dur * 0.5); }
-    g.gain.exponentialRampToValueAtTime(0.0001, t + o.dur);
-    osc.connect(g); g.connect(o.bus || sfxBus);
-    osc.start(t); osc.stop(t + o.dur + 0.03);
-    voices++;
-    osc.onended = () => { voices--; g.disconnect(); };
+    if (!A.ready) return;
+    const mus = !!o.bus, list = (mus ? mPool : sPool).tone[o.type || 'pulse50'];
+    if (!list) return;
+    const t = startTime(o), dur = o.dur, v = take(list, t, t + dur + 0.04);
+    if (!v) return;
+    const vol = (o.vol === undefined ? 0.2 : o.vol) * (mus ? o.bus.gain : 1), f = v.osc.frequency, g = v.gain.gain;
+    f.cancelScheduledValues(t); f.setValueAtTime(o.f0, t);
+    if (o.f1 && o.f1 !== o.f0) f.exponentialRampToValueAtTime(Math.max(20, o.f1), t + dur);
+    g.cancelScheduledValues(t); g.setValueAtTime(0.0001, t);
+    g.linearRampToValueAtTime(vol, t + (o.attack || 0.002));
+    if (o.sustain) g.linearRampToValueAtTime(vol * o.sustain, t + dur * 0.5);          /* a smooth dip: the old hard step was a click on every lead note */
+    g.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.setValueAtTime(0, t + dur + 0.005);
   }
   function noise(o) {
-    if (!A.ready || full(o)) return;
-    const ctx = A.ctx, t = o.at !== undefined ? o.at : ctx.currentTime + (o.delay || 0);
-    const src = ctx.createBufferSource(); src.buffer = noiseBuf;
-    const f = ctx.createBiquadFilter(); f.type = o.type || 'lowpass';
-    f.frequency.setValueAtTime(o.f0, t);
-    if (o.f1) f.frequency.exponentialRampToValueAtTime(Math.max(20, o.f1), t + o.dur);
-    if (o.q) f.Q.value = o.q;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(o.vol === undefined ? 0.3 : o.vol, t + (o.attack || 0.003));
-    g.gain.exponentialRampToValueAtTime(0.0001, t + o.dur);
-    src.connect(f); f.connect(g); g.connect(o.bus || sfxBus);
-    src.start(t, Math.random() * 1.5, o.dur + 0.05);
-    voices++;
-    src.onended = () => { voices--; g.disconnect(); };
+    if (!A.ready) return;
+    const mus = !!o.bus, list = (mus ? mPool : sPool).noise[o.type || 'lowpass'];
+    if (!list) return;
+    const t = startTime(o), dur = o.dur, v = take(list, t, t + dur + 0.04);
+    if (!v) return;
+    const vol = (o.vol === undefined ? 0.3 : o.vol) * (mus ? o.bus.gain : 1), f = v.filter.frequency, g = v.gain.gain;
+    f.cancelScheduledValues(t); f.setValueAtTime(o.f0, t);
+    if (o.f1) f.exponentialRampToValueAtTime(Math.max(20, o.f1), t + dur);
+    v.filter.Q.cancelScheduledValues(t); v.filter.Q.setValueAtTime(o.q || 1, t);
+    g.cancelScheduledValues(t); g.setValueAtTime(0.0001, t);
+    g.linearRampToValueAtTime(vol, t + (o.attack || 0.003));
+    g.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.setValueAtTime(0, t + dur + 0.005);
   }
 
   /* ---------- sound effects ---------- */
@@ -202,7 +246,7 @@
   const midi = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
   function initMusic() {
-    for (const k of ['lead', 'arp', 'bass', 'drums']) { L[k] = A.ctx.createGain(); L[k].gain.value = k === 'bass' ? 1 : k === 'drums' ? 0.9 : 0.8; L[k].connect(musicBus); }
+    for (const k of ['lead', 'arp', 'bass', 'drums']) L[k] = { gain: k === 'bass' ? 1 : k === 'drums' ? 0.9 : 0.8 };   /* just a level per channel: every music voice feeds the music bus directly */
   }
   function schedStep(t, s) {
     const song = M.song, bar = (s >> 4) & 15, st = s & 15, sixteenth = 60 / song.tempo / 4;
@@ -214,7 +258,8 @@
       tone({ type: song.ld, f0: midi(base + 24 + semi(cd + v)), dur: sixteenth * len * 0.92, vol: 0.085, sustain: 0.6, bus: L.lead, at: t });
     }
     /* second pulse: chord arpeggios, or a quiet echo of the lead three steps late */
-    if (song.arp === 'echo') {
+    if (S.liteAudio) { /* simpler sound: no second pulse voice */ }
+    else if (song.arp === 'echo') {
       const e = ph[(st + 13) & 15], pe = (st + 13) & 15;
       if (e >= 0 && (st >= 3 || bar > 0)) tone({ type: song.ad, f0: midi(base + 24 + semi(cd + e)), dur: sixteenth * 1.4, vol: 0.04, bus: L.arp, at: t });
       void pe;
@@ -232,7 +277,7 @@
     const D = DRUMS[song.drums], fill = bar === 7 || bar === 15;
     if (D.k.indexOf(st) >= 0) { noise({ type: 'lowpass', f0: 420, f1: 55, dur: 0.1, vol: 0.4, bus: L.drums, at: t }); tone({ type: 'sine', f0: 150, f1: 45, dur: 0.1, vol: 0.3, bus: L.drums, at: t }); }
     if (D.s.indexOf(st) >= 0 || (fill && st >= 12 && st % 1 === 0 && st > 11 && (st & 1) === 0)) noise({ type: 'highpass', f0: 1700, dur: 0.12, vol: 0.2, bus: L.drums, at: t });
-    if (st % D.h === 0) noise({ type: 'highpass', f0: 7500, dur: st % 4 === 2 ? 0.07 : 0.03, vol: st % 4 === 2 ? 0.09 : 0.055, bus: L.drums, at: t });
+    if (st % D.h === 0 && !S.liteAudio) noise({ type: 'highpass', f0: 7500, dur: st % 4 === 2 ? 0.07 : 0.03, vol: st % 4 === 2 ? 0.09 : 0.055, bus: L.drums, at: t });
   }
   function scheduler() {
     if (!M.on || !A.ready || !M.song) return;
