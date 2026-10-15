@@ -30,7 +30,7 @@
   Game.award = function (pts, x, y) {
     if (this.demo) return;
     this.score += pts; this.credits += pts;
-    if (x !== undefined && pts >= 100) FX.text(x, y - 18, '+' + pts, pts >= 400 ? '#ffd24a' : '#ffffff', pts >= 400 ? 22 : 16);
+    if (x !== undefined && pts >= 25) FX.text(x, y - 18, '+' + pts, pts >= 400 ? '#ffd24a' : '#ffffff', pts >= 400 ? 22 : pts >= 100 ? 17 : 13);
   };
   Game.civPenalty = function (x, y) {
     if (this.demo) return;

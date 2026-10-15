@@ -158,14 +158,14 @@
   };
   M.closeShop = function () {
     if (M.mode !== 'shop') return;
-    M.mode = 'play'; I.clear(); UI.hideAll();
+    M.mode = 'play'; I.resync(); UI.hideAll();
     Game.closeShop();
     A.music(C.ZONES[Math.max(0, Game.zone)].music);
   };
   M.resume = function () {
     if (M.mode !== 'pause') return;
     M.mode = 'play';
-    I.clear();
+    I.resync();
     UI.hideAll();
     if (A.ctx) A.ctx.resume();
   };

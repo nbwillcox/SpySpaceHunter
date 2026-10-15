@@ -51,11 +51,14 @@
     if (e.dead) return;
     e.dead = true;
     const big = e.kind === 'limo' || e.kind === 'civbus' || e.air ? 2.2 : e.kind === 'bike' || e.kind === 'mine' ? 0.9 : 1.5;
-    FX.explosion(e.x, e.y, big, e.team === 'civ' ? 40 : e.kind === 'mine' ? 20 : 8);
+    const ex = U.clamp(e.x, 28, W - 28);                                    /* a car that tumbled off the side blows up at the edge of the screen, not out of sight */
+    FX.explosion(ex, e.y, big, e.team === 'civ' ? 40 : e.kind === 'mine' ? 20 : 8);
     if (e.air) { FX.debris(e.x, e.y, 8, 'hsla(200,80%,60%,1)', 220); A.sfx.boom(2); } else A.sfx.boom(big > 1.8 ? 1 : 0);
     if (e.kind === 'mine') FX.ring(e.x, e.y, 6, 52, 'hsla(20,100%,65%,1)', 0.45, 3);
-    if (e.team === 'enemy') g.award(DEF[e.kind].pts, e.x, e.y);
-    else if (e.team === 'civ' && e.lastHit === 'player') g.civPenalty(e.x, e.y);
+    if (!e.scored) {
+      if (e.team === 'enemy') g.award(DEF[e.kind].pts, ex, e.y);
+      else if (e.team === 'civ' && e.lastHit === 'player') g.civPenalty(ex, e.y);
+    }
     if (e.kind === 'mine' && e.near) g.hurtPlayer(30, e.x);
   };
   const skid = (e, t) => { e.loss = Math.max(e.loss, t); e.spin = U.rand(6, 9) * (U.chance(0.5) ? 1 : -1); e.vx += U.rand(-70, 70); };
@@ -186,6 +189,10 @@
     e.crash = 0.8; e.spin = U.chance(0.5) ? 5 : -5; e.vx = (e.x < W / 2 ? -1 : 1) * Math.max(70, Math.abs(e.vx));
     if (e.team === 'enemy') e.lastHit = 'player';
     A.sfx.skid();
+    /* scored the instant it leaves the road, with the popup kept on screen where you can see it (the tumble takes it off the side of the screen) */
+    const px = U.clamp(e.x, 44, W - 44);
+    if (e.team === 'enemy') { g.award(DEF[e.kind].pts, px, e.y); e.scored = true; FX.ring(px, e.y, 6, 46, 'hsla(50,100%,70%,1)', 0.35, 3); }
+    else if (e.team === 'civ' && e.lastHit === 'player') { g.civPenalty(px, e.y); e.scored = true; }
   }
 
   /* the supply truck is solid: traffic swerves around it, and is never allowed to pass through it */

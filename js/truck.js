@@ -2,7 +2,7 @@
    and when you leave it lets you out and drives off. */
 (function (G) {
   'use strict';
-  const U = G.U, C = G.C, FX = G.fx, GFX = G.gfx, A = G.audio, Road = G.road, W = C.W, H = C.H, L = C.ROAD_L, R = C.ROAD_R;
+  const U = G.U, C = G.C, FX = G.fx, GFX = G.gfx, A = G.audio, I = G.input, Road = G.road, W = C.W, H = C.H, L = C.ROAD_L, R = C.ROAD_R;
   const T = {};
   G.truck = T;
   /* geometry of the rig, from the cab's nose (y) downwards */
@@ -46,7 +46,7 @@
         const rp = T.ramp(tk);
         if (Math.abs(P.x - rp.x) < 19 && P.y - P.h / 2 < rp.bottom - 4 && P.y - P.h / 2 > rp.y - 40 && Math.abs(P.vx) < 190) {
           tk.state = 'enter'; tk.t = 0; P.docked = true; g.dockPhase = 'enter';
-          g.eb.length = 0; g.bombs.length = 0; P.invuln = Math.max(P.invuln, 30);
+          g.eb.length = 0; g.bombs.length = 0; P.invuln = Math.max(P.invuln, 6);
           A.sfx.dock();
         }
       }
@@ -68,21 +68,22 @@
       if (tk.t > 2.8) { tk.state = 'shop'; g.dockMul = 0; g.speed = 0; g.cruise = 0; g.openShop(); }
     } else if (tk.state === 'shop') {
       /* the game is paused by the main loop; nothing moves */
-    } else if (tk.state === 'exit') {                                     /* the car backs out of the ramp, the truck rolls on */
+    } else if (tk.state === 'exit') {                                     /* the car rolls out of the ramp, the truck pulls away, and you have the wheel back almost at once */
       const k = Math.min(1, tk.t / 1.8);
-      const rp = T.ramp(tk), outY = rp.bottom + 70;
-      P.y += (outY - P.y) * Math.min(1, 2.4 * dt); P.x += (tk.x - P.x) * Math.min(1, 6 * dt);
-      g.dockMul = U.easeOutCubic(U.clamp((tk.t - 0.5) / 1.5, 0, 1));
-      tk.ev += (g.speed * 2.2 - tk.ev) * Math.min(1, 1.4 * dt); tk.y += (g.speed - tk.ev) * dt - 14 * dt * k;
-      if (tk.t > 0.9 && P.docked) { P.docked = false; g.dockPhase = null; P.invuln = Math.max(P.invuln, 2); }
+      const rp = T.ramp(tk), outY = rp.bottom + 60;
+      if (P.docked) { P.y += (outY - P.y) * Math.min(1, 8 * dt); P.x += (tk.x - P.x) * Math.min(1, 8 * dt); }
+      g.dockMul = U.easeOutCubic(U.clamp((tk.t - 0.05) / 0.85, 0, 1));
+      tk.ev = Math.max(tk.ev, 130 + g.speed * 1.3);                                  /* it always drives away from you, even while you are still getting up to speed */
+      tk.y += (g.speed - tk.ev) * dt - 14 * dt * k;
+      if (tk.t > 0.3 && P.docked) { P.docked = false; g.dockPhase = null; P.invuln = 2; I.resync(); }
       if (tk.t > 1.8) g.dockPhase = null;
-      if (tk.y < -420) g.truck = null;
+      if (tk.y < -420) { g.truck = null; g.dockMul = 1; }
     }
   };
 
   T.leave = function (g) {
     const tk = g.truck; if (!tk) return;
-    tk.state = 'exit'; tk.t = 0; tk.ev = 0; A.sfx.truckHorn();
+    tk.state = 'exit'; tk.t = 0; tk.ev = 130; A.sfx.truckHorn();
   };
 
   T.draw = function (ctx, g) {

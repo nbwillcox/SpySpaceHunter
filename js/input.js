@@ -117,19 +117,29 @@
   /* real keyboard events use your bindings; scripted ones (the touch buttons) use the defaults */
   const lookup = (e) => (e.isTrusted ? map : DEF_MAP)[norm(e.code)];
 
+  /* which keys are physically down right now, so closing the shop or un-pausing can pick up a key you are still holding instead of waiting for the keyboard's repeat delay */
+  const held = new Map();
+  I.resync = function () {
+    I.clear();
+    for (const [c, trusted] of held) { const id = (trusted ? map : DEF_MAP)[c]; if (id) act(id, true, true); }
+  };
+
   window.addEventListener('keydown', (e) => {
-    if (I.capturing || typing(e.target)) return;
+    if (typing(e.target)) return;
+    held.set(norm(e.code), e.isTrusted);
+    if (I.capturing) return;
     const id = lookup(e);
     if (id) act(id, true, e.repeat);
     if (!e.repeat) I._any = true;
     if (id && e.target.tagName !== 'BUTTON') e.preventDefault();
   });
   window.addEventListener('keyup', (e) => {
+    held.delete(norm(e.code));
     if (I.capturing) return;
     const id = lookup(e);
     if (id) act(id, false, false);
   });
-  window.addEventListener('blur', () => I.clear());
+  window.addEventListener('blur', () => { held.clear(); I.clear(); });
 
   I.bind = function (canvas) {
     canvas.addEventListener('mousedown', (e) => {
