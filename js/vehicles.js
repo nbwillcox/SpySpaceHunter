@@ -270,7 +270,7 @@
         const dm = Math.min(7, Math.max(0, (imp - 120) * 0.035) * (em / (em + pm)) * 2);
         if (dm > 0) g.hurtPlayer(dm, e.x, imp);
         if (imp > 120 && e.team !== 'neutral') V.damage(g, e, (imp - 100) / 130 * (pm / (pm + em)) * 2.2, 'player');
-        if (imp > 100) { FX.sparks((e.x + P.x) / 2, (e.y + P.y) / 2, 7, 160, 'hsla(50,100%,70%,1)', 0.3, 1.4); A.sfx.crash(); FX.addShake(Math.min(5, imp / 90)); }
+        if (imp > 100) { FX.sparks((e.x + P.x) / 2, (e.y + P.y) / 2, 7, 160, 'hsla(50,100%,70%,1)', 0.3, 1.4); A.sfx.crash(); if (g.time - (P.shakeT || 0) > 0.25) { P.shakeT = g.time; FX.addShake(Math.min(1.5, imp / 200)); } }
       }
     }
     g.en = en.filter((e) => !e.dead);

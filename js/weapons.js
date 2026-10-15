@@ -40,7 +40,7 @@
   Wp.emp = function (g, P) {
     if (P.ammo.emp <= 0) { A.sfx.dry(); g.flashHud('emp'); return; }
     P.ammo.emp--;
-    A.sfx.emp(); FX.doFlash(0.55, '120,220,255'); FX.addShake(8);
+    A.sfx.emp(); FX.doFlash(0.55, '120,220,255'); FX.addShake(2.5);
     FX.ring(P.x, P.y, 10, 520, 'hsla(190,100%,70%,1)', 0.7, 6); FX.ring(P.x, P.y, 6, 380, 'hsla(300,100%,70%,1)', 0.55, 3);
     for (const e of g.en) {
       if (e.dead || e.crash) continue;
@@ -121,7 +121,7 @@
     for (const bm of g.bombs) {
       bm.t += dt; bm.y += sp * dt;
       if (bm.t >= bm.fuse) {
-        bm.dead = true; explode(g, bm.x, bm.y, bm.r, 2, 1.8); FX.addShake(5);
+        bm.dead = true; explode(g, bm.x, bm.y, bm.r, 2, 1.8); FX.addShake(1.6);
         if (P.alive && !P.docked && !P.conv && Math.hypot(P.x - bm.x, P.y - bm.y) < bm.r + 12) g.hurtPlayer(28, bm.x, 160);
       }
     }

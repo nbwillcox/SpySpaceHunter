@@ -24,7 +24,7 @@
     FX.texts.length = 0; FX.shake = 0; FX.flash = 0;
   };
 
-  FX.addShake = function (a) { if (S.shake && !S.reduced) FX.shake = Math.min(18, FX.shake + a); };
+  FX.addShake = function (a) { if (S.shake && !S.reduced) FX.shake = Math.min(5, FX.shake + a); };
   FX.doFlash = function (a, c) { if (!S.reduced) { FX.flash = Math.max(FX.flash, a); FX.flashColor = c || '255,255,255'; } };
 
   FX.sparks = function (x, y, n, speed, color, life, size) {
@@ -69,7 +69,7 @@
     FX.sparks(x, y, 10 * size, 150 + 40 * size, col(hue, 65), 0.55);
     FX.sparks(x, y, 5 * size, 100 + 30 * size, 'rgba(255,255,255,1)', 0.35, 1.2);
     if (size >= 2) { FX.smoke(x, y, 2 + size, 8 * size); FX.debris(x, y, 3 * size, col(hue, 45), 120 + 30 * size); }
-    FX.addShake(size * 1.2);
+    FX.addShake(size * 0.4);
   };
   FX.text = function (x, y, str, color, size) {
     if (FX.texts.length > 40) FX.texts.shift();
@@ -92,7 +92,7 @@
       t.t += dt; t.y -= 34 * dt;
       if (t.t >= t.life) FX.texts.splice(i, 1);
     }
-    FX.shake *= Math.max(0, 1 - 7 * dt);
+    FX.shake *= Math.max(0, 1 - 10 * dt);
     if (FX.shake < 0.05) FX.shake = 0;
     FX.flash = Math.max(0, FX.flash - dt * 2.2);
   };

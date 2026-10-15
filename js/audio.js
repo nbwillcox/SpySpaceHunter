@@ -20,10 +20,15 @@
     if (!AC) return;
     try { A.ctx = new AC(); } catch (e) { return; }
     const ctx = A.ctx;
+    /* master chain: a fast limiter, then a gentle tanh soft-clipper so a pile-up of impacts saturates smoothly instead of crackling */
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -16; comp.ratio.value = 6; comp.attack.value = 0.004; comp.release.value = 0.18;
+    comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 14; comp.attack.value = 0.002; comp.release.value = 0.16;
+    const clip = ctx.createWaveShaper(), curve = new Float32Array(1024);
+    for (let i = 0; i < curve.length; i++) { const x = i / (curve.length - 1) * 2 - 1; curve[i] = Math.tanh(x * 1.5) / Math.tanh(1.5); }
+    clip.curve = curve; clip.oversample = '2x';
+    const out = ctx.createGain(); out.gain.value = 0.9;
     master = ctx.createGain(); sfxBus = ctx.createGain(); musicBus = ctx.createGain();
-    sfxBus.connect(master); musicBus.connect(master); master.connect(comp); comp.connect(ctx.destination);
+    sfxBus.connect(master); musicBus.connect(master); master.connect(comp); comp.connect(clip); clip.connect(out); out.connect(ctx.destination);
     const len = ctx.sampleRate * 2;
     noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
@@ -45,7 +50,7 @@
     if (!A.ctx) return;
     master.gain.value = S.master;
     sfxBus.gain.value = S.sfx;
-    musicBus.gain.value = S.music * 0.55;
+    musicBus.gain.cancelScheduledValues(0); musicBus.gain.value = S.music * 0.55;
   };
   A.engine = function (norm, dmg, on) {
     if (!A.ready) return;
@@ -62,8 +67,17 @@
     return (waves[d] = A.ctx.createPeriodicWave(re, im));
   }
   const DUTY = { pulse12: 0.125, pulse25: 0.25, pulse50: 0.5 };
+  /* sound effects may not starve the music of voices (the music buses are not sfxBus) */
+  const full = (o) => voices > (o.bus ? 110 : 44);
+  /* an impact briefly ducks the music so the hit stays clean and the mix cannot pile up */
+  function duck(depth, dur) {
+    if (!A.ready || !musicBus) return;
+    const t = A.ctx.currentTime, base = S.music * 0.55;
+    musicBus.gain.cancelScheduledValues(t); musicBus.gain.setValueAtTime(musicBus.gain.value, t);
+    musicBus.gain.linearRampToValueAtTime(base * (1 - depth), t + 0.012); musicBus.gain.linearRampToValueAtTime(base, t + dur);
+  }
   function tone(o) {
-    if (!A.ready || voices > 56) return;
+    if (!A.ready || full(o)) return;
     const ctx = A.ctx, t = o.at !== undefined ? o.at : ctx.currentTime + (o.delay || 0);
     const osc = ctx.createOscillator(), g = ctx.createGain(), ty = o.type || 'pulse50';
     if (DUTY[ty]) osc.setPeriodicWave(pulseWave(DUTY[ty])); else osc.type = ty;
@@ -80,7 +94,7 @@
     osc.onended = () => { voices--; g.disconnect(); };
   }
   function noise(o) {
-    if (!A.ready || voices > 56) return;
+    if (!A.ready || full(o)) return;
     const ctx = A.ctx, t = o.at !== undefined ? o.at : ctx.currentTime + (o.delay || 0);
     const src = ctx.createBufferSource(); src.buffer = noiseBuf;
     const f = ctx.createBiquadFilter(); f.type = o.type || 'lowpass';
@@ -108,15 +122,17 @@
   X.shieldHit = () => { if (gate('shh', 60)) tone({ type: 'pulse50', f0: 1400, f1: 700, dur: 0.07, vol: 0.09 }); };
   X.hit = () => { if (gate('hit', 35)) tone({ type: 'pulse25', f0: 700, f1: 380, dur: 0.05, vol: 0.07 }); };
   X.ping = () => { if (gate('ping', 60)) tone({ type: 'pulse12', f0: 2600, f1: 2200, dur: 0.05, vol: 0.06 }); };
-  X.hurt = () => { if (gate('hurt', 70)) { noise({ type: 'lowpass', f0: 1400, f1: 200, dur: 0.16, vol: 0.2 }); tone({ type: 'pulse25', f0: 180, f1: 70, dur: 0.14, vol: 0.12 }); } };
-  X.crash = () => { if (gate('crash', 80)) { noise({ type: 'lowpass', f0: 1800, f1: 160, dur: 0.22, vol: 0.24 }); tone({ type: 'pulse50', f0: 150, f1: 55, dur: 0.18, vol: 0.12 }); } };
+  /* hurt and crash share one gate: a collision that also does damage is one clean thump, not two stacked ones */
+  X.hurt = () => { if (gate('impact', 110)) { duck(0.5, 0.3); noise({ type: 'lowpass', f0: 1200, f1: 180, dur: 0.15, vol: 0.12 }); tone({ type: 'pulse25', f0: 170, f1: 70, dur: 0.13, vol: 0.07 }); } };
+  X.crash = () => { if (gate('impact', 110)) { duck(0.4, 0.26); noise({ type: 'lowpass', f0: 1500, f1: 160, dur: 0.2, vol: 0.14 }); tone({ type: 'pulse50', f0: 150, f1: 55, dur: 0.16, vol: 0.07 }); } };
   X.scrape = () => { if (gate('scr', 90)) noise({ type: 'highpass', f0: 2800, f1: 1800, dur: 0.1, vol: 0.1 }); };
   X.rumble = () => { if (gate('rum', 110)) noise({ type: 'lowpass', f0: 380, dur: 0.12, vol: 0.14 }); };
   X.skid = () => { if (gate('skid', 140)) { noise({ type: 'bandpass', f0: 2400, f1: 1500, dur: 0.35, vol: 0.09, q: 3 }); } };
   X.boom = (n) => {
-    if (!gate('boom' + (n || 0), 55)) return;
-    noise({ type: 'lowpass', f0: 2200, f1: 90, dur: 0.38 + (n || 0) * 0.25, vol: 0.34 });
-    tone({ type: 'pulse25', f0: 140, f1: 38, dur: 0.3 + (n || 0) * 0.2, vol: 0.2 });
+    if (!gate('boom', 90)) return;
+    duck(0.45, 0.35 + (n || 0) * 0.15);
+    noise({ type: 'lowpass', f0: 1800, f1: 90, dur: 0.36 + (n || 0) * 0.22, vol: 0.2 });
+    tone({ type: 'pulse25', f0: 140, f1: 38, dur: 0.28 + (n || 0) * 0.18, vol: 0.12 });
   };
   X.enemyShot = () => { if (gate('es', 70)) tone({ type: 'pulse25', f0: 900, f1: 300, dur: 0.07, vol: 0.06 }); };
   X.dry = () => { if (gate('dry', 150)) tone({ type: 'pulse50', f0: 180, dur: 0.05, vol: 0.07 }); };
@@ -222,8 +238,9 @@
     if (!M.on || !A.ready || !M.song) return;
     const ctx = A.ctx;
     if (ctx.state !== 'running') return;
-    if (M.next < ctx.currentTime - 0.25) M.next = ctx.currentTime + 0.05;
-    while (M.next < ctx.currentTime + 0.14) {
+    /* schedule well ahead so a hitch in the frame rate (an explosion, a pile-up) cannot starve the music and make it stutter */
+    if (M.next < ctx.currentTime - 0.7) M.next = ctx.currentTime + 0.05;
+    while (M.next < ctx.currentTime + 0.45) {
       schedStep(M.next, M.step);
       M.next += 60 / M.song.tempo / 4;
       M.step = (M.step + 1) & 255;

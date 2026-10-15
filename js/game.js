@@ -55,7 +55,7 @@
       if (amount <= 0.01) return;
     }
     P.invuln = Math.max(P.invuln, 0.5);                                                          /* a breather after every hit so a pile-up can't chain into a wreck */
-    P.dmg = Math.min(100, P.dmg + amount); P.flash = 0.14; FX.addShake(Math.min(6, 1 + amount * 0.3)); A.sfx.hurt();
+    P.dmg = Math.min(100, P.dmg + amount); P.flash = 0.14; FX.addShake(Math.min(1.6, 0.5 + amount * 0.1)); A.sfx.hurt();
     if (P.dmg >= 100) this.loseCar(this.surface === 'water' ? 'sunk' : 'destroyed');
   };
 
@@ -63,7 +63,7 @@
     const P = this.player;
     if (!P.alive) return;
     P.alive = false; P.docked = false; P.conv = null; P.shield = 0;
-    FX.explosion(P.x, P.y, 2.6, 18); FX.explosion(P.x, P.y, 1.6, 190); FX.debris(P.x, P.y, 12, 'hsla(190,80%,70%,1)', 260); FX.doFlash(0.5, '255,200,160'); FX.addShake(12);
+    FX.explosion(P.x, P.y, 2.6, 18); FX.explosion(P.x, P.y, 1.6, 190); FX.debris(P.x, P.y, 12, 'hsla(190,80%,70%,1)', 260); FX.doFlash(0.5, '255,200,160'); FX.addShake(3.5);
     A.sfx.boom(1); A.sfx.playerDie();
     if (why === 'off') FX.text(P.x, P.y - 30, 'OFF THE ROAD!', '#ff6a6a', 24);
     this.eb.length = 0; this.bombs.length = 0;
@@ -198,7 +198,7 @@
     const ok = P.alive && !P.docked && !P.conv && !this.truck && this.respawnT <= 0 && !this.demo;
     const want = ok && I.turbo && !P.tbLock && P.tb > 0;
     if (want) {
-      if (!P.tbOn) { P.tbOn = true; A.sfx.turbo(); FX.addShake(3); FX.ring(P.x, P.y + 20, 8, 70, 'hsla(30,100%,65%,1)', 0.35, 3); }
+      if (!P.tbOn) { P.tbOn = true; A.sfx.turbo(); FX.addShake(1); FX.ring(P.x, P.y + 20, 8, 70, 'hsla(30,100%,65%,1)', 0.35, 3); }
       P.tb = Math.max(0, P.tb - C.TURBO_DRAIN * dt); P.tbRest = 0.8;
       if (P.tb <= 0) { P.tbLock = true; P.tbOn = false; A.sfx.turboOut(); this.flashHud('turbo'); }
     } else {
