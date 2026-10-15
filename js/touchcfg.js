@@ -8,6 +8,8 @@ window.TOUCH_CFG = {
     { t: 'stick', id: 'steer', zone: [0, 0.4, 0.45, 1], mode: 'h', keys: {}, r: 60, dead: 0.1, onMove: (x) => { const I = window.SGS && window.SGS.input; if (I) I.stick = Math.abs(x) < 0.08 ? 0 : x; } },
     { t: 'btn', id: 'fire', label: 'FIRE', key: 'Space', hold: true, size: 96, pos: { r: 14, b: 22 } },
     { t: 'btn', id: 'turbo', label: 'TURBO', key: 'ShiftLeft', hold: true, size: 72, pos: { r: 120, b: 26 } },
+    { t: 'btn', id: 'bumpL', label: '◀', key: 'KeyQ', hold: false, size: 48, pos: { l: 76, b: 26 } },
+    { t: 'btn', id: 'bumpR', label: '▶', key: 'KeyE', hold: false, size: 48, pos: { l: 130, b: 26 } },
     { t: 'btn', id: 'missile', label: 'MSL', key: 'KeyC', hold: false, size: 54, pos: { r: 14, b: 128 } },
     { t: 'btn', id: 'oil', label: 'OIL', key: 'KeyZ', hold: false, size: 54, pos: { r: 74, b: 128 } },
     { t: 'btn', id: 'smoke', label: 'SMK', key: 'KeyX', hold: false, size: 52, pos: { r: 134, b: 112 } },

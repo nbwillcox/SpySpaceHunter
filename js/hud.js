@@ -112,6 +112,18 @@
       ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(bx2 + bw * 0.35 - 1, by - 1, 1.5, 10);
       if (!touch) txt(ctx, G.input.label('turbo'), bx2 + bw + 4, by + 7, 8, '#7f95b8', 'left', 800);
     }
+    /* the bump: two arrows that light up when a shove is ready */
+    {
+      const rdy = P.bumpCd <= 0 && P.bumpT <= 0, fl = g.hudFlash.bump > 0 && Math.floor(g.time * 12) % 2, frac = 1 - Math.min(1, P.bumpCd / C.BUMP_CD), x3 = 74, y3 = H - 63, In = G.input;
+      const kl = In.hint('bumpL'), kr = In.hint('bumpR'), col = fl ? '#ff5a6a' : rdy ? '#7ee8ff' : 'rgba(255,255,255,0.28)';
+      ctx.fillStyle = 'rgba(2,4,18,0.62)'; ctx.fillRect(x3 - 4, y3 - 2, 70, 17);
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.moveTo(x3 + 12, y3 + 1); ctx.lineTo(x3 + 12, y3 + 11); ctx.lineTo(x3 + 5, y3 + 6); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x3 + 50, y3 + 1); ctx.lineTo(x3 + 50, y3 + 11); ctx.lineTo(x3 + 57, y3 + 6); ctx.closePath(); ctx.fill();
+      txt(ctx, 'BUMP', x3 + 31, y3 + 10, 9, rdy ? '#7ee8ff' : '#6f86a8', 'center', 800);
+      if (!touch && kl.length <= 2 && kr.length <= 2) { txt(ctx, kl, x3 - 1, y3 + 10, 8, '#7f95b8', 'right', 800); txt(ctx, kr, x3 + 62, y3 + 10, 8, '#7f95b8', 'left', 800); }
+      ctx.fillStyle = col; ctx.fillRect(x3, y3 + 14, 56 * frac, 1.5);
+    }
     if (P.offT > 0.05 && P.mode === 'car' && Math.floor(g.time * 10) % 2) txt(ctx, 'OFF THE ROAD!  STEER BACK', W / 2, 130, 17, '#ff6a6a', 'center', 900, 'rgba(255,40,60,0.8)');
     HUD.banner(ctx, g);
     if (g.truck && g.truck.state === 'shop') txt(ctx, 'SUPPLY TRUCK', W / 2, 120, 18, '#ff7a82', 'center', 900, 'rgba(255,60,70,0.8)');
@@ -141,7 +153,7 @@
     ctx.save();
     txt(ctx, 'SPY SPACE HUNTER', cx1, top, 15 * sc, '#ffffff', 'center', 900, 'rgba(255,90,210,0.9)');
     const In = G.input, tg = G.settings.turboToggle;
-    const help = ['STEER', In.steerText(), 'MACHINE GUN', In.label('fire') + '  /  LEFT CLICK', tg ? 'TURBO (TOGGLE)' : 'TURBO (HOLD)', In.label('turbo'), 'OIL / MINE   SMOKE', In.hint('oil') + '   ' + In.hint('smoke'),
+    const help = ['STEER', In.steerText(), 'MACHINE GUN', In.label('fire') + '  /  LEFT CLICK', tg ? 'TURBO (TOGGLE)' : 'TURBO (HOLD)', In.label('turbo'), 'BUMP LEFT / RIGHT', In.hint('bumpL') + '   ' + In.hint('bumpR'), 'OIL / MINE   SMOKE', In.hint('oil') + '   ' + In.hint('smoke'),
       'MISSILE   EMP   SHIELD', In.hint('missile') + '   ' + In.hint('emp') + '   ' + In.hint('shield'), 'PAUSE', In.label('pause')];
     help.forEach((s, i) => txt(ctx, s, cx1, top + 44 * sc + i * 20 * sc, (i % 2 ? 12 : 10) * sc, i % 2 ? col : '#ff7ad9', 'center', i % 2 ? 700 : 800));
     txt(ctx, 'TOP DRIVERS', cx2, top, 15 * sc, '#ffffff', 'center', 900, 'rgba(255,90,210,0.9)');

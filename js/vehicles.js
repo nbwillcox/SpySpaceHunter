@@ -66,6 +66,43 @@
 
   /* ---------- AI ---------- */
   const follow = (e, tx, gain, max) => { e.wantVx = U.clamp((U.clamp(tx, L + 16, R - 16) - e.x) * gain, -max, max); };   /* never aim for a spot off the road */
+  /* where the player will be a moment from now: where it is, plus where it is heading (smoothed sideways speed and the steering being held); further ahead for cars that are far away */
+  const aim = (g, e) => { const P = g.player; if (V.predictOn === false) return U.clamp(P.x, L + 16, R - 16); const tau = U.clamp(0.12 + Math.abs(e.y - P.y) / 650, 0.12, 0.6); return U.clamp(P.x + (P.vxS || 0) * tau + (P.steer || 0) * 34 * tau, L + 16, R - 16); };
+  /* a car will not pick a side that is blocked by another vehicle or by the edge of the road */
+  function sideBlocked(g, e, o, s) {
+    const tx = e.x + s * (e.w + 16);
+    if (tx < L + 16 || tx > R - 16) return true;
+    for (const q of g.en) { if (q === e || q === o || q.dead || q.air || q.crash) continue; if (Math.abs(q.x - tx) < (q.w + e.w) / 2 && Math.abs(q.y - e.y) < (q.h + e.h) / 2 + 28) return true; }
+    return false;
+  }
+  /* every ground vehicle looks a moment ahead: it steers round slower traffic in its way (civilians, rocks, mines, other cars) instead of driving through it, and brakes if it is boxed in.
+     It never plans to hit anything on purpose except you. */
+  function avoid(g, e) {
+    let push = 0, worst = 0;
+    for (const o of g.en) {
+      if (o === e || o.dead || o.air || o.crash) continue;
+      const dy = e.y - o.y, hh = (e.h + o.h) / 2;                          /* dy > 0: o is ahead of e */
+      if (Math.abs(dy) < hh + 6 && o.team !== 'enemy') {                    /* alongside a civilian or a rock: do not swing into it */
+        const sdx = e.x - o.x, sneed = (e.w + o.w) / 2 + 12;
+        if (Math.abs(sdx) < sneed && e.wantVx * sdx < 0) e.wantVx = e.wantVx * 0.1 + Math.sign(sdx) * 40;
+      }
+      if (dy < 4) continue;
+      const gap = dy - hh, closing = e.ev - o.ev, look = 70 + Math.max(0, closing) * 0.8;
+      if (gap > look || (closing < -10 && gap > 24)) continue;
+      const dx = e.x - o.x, need = (e.w + o.w) / 2 + 8;
+      if (Math.abs(dx) >= need + 16) continue;
+      const k = U.clamp(1 - Math.max(0, gap) / look, 0.15, 1);
+      let s = Math.abs(dx) > 5 ? Math.sign(dx) : (e.side || 1);
+      if (sideBlocked(g, e, o, s)) {
+        if (!sideBlocked(g, e, o, -s)) s = -s;
+        else { if (gap < 30) e.evT = Math.min(e.evT, o.ev - 3); continue; }  /* boxed in: slow to the pace of what is ahead */
+      }
+      push += s * k * (1 + (need - Math.abs(dx)) / need); if (k > worst) worst = k;
+      if (Math.abs(dx) < need && gap < 22) e.evT = Math.min(e.evT, o.ev - 3);   /* and never rear-end it */
+    }
+    if (worst > 0) { const w = Math.min(1, 0.25 + worst * 1.6); e.wantVx = e.wantVx * (1 - w) + U.clamp(push, -1, 1) * 190 * w; }
+    if (e.x < L + 20 && e.wantVx < 0) e.wantVx = 0; else if (e.x > R - 20 && e.wantVx > 0) e.wantVx = 0;
+  }
   function ahead(g, e) {                                                  /* the nearest slower vehicle in my lane just ahead (smaller y) */
     let best = null;
     for (const o of g.en) { if (o === e || o.dead || o.air || o.crash || Math.abs(o.x - e.x) > 26 || o.y >= e.y || e.y - o.y > e.h / 2 + o.h / 2 + 38) continue; if (!best || o.y > best.y) best = o; }
@@ -85,34 +122,36 @@
       e.evT = g.cruise + U.clamp(dy * 1.1, -90, 130);
       if (e.blind > 0) { e.wantVx = 0; return; }
       e.cd -= dt;
-      if (e.cool > 0) { e.cool -= dt; follow(e, P.x + e.side * 120, 1.2, 130); return; }
-      if (Math.abs(dy) < 80) follow(e, P.x, 2.0, 150);
-      else follow(e, P.x + e.side * 52, 1.4, 120);
+      const px = aim(g, e);
+      if (e.cool > 0) { e.cool -= dt; follow(e, px + e.side * 120, 1.2, 130); return; }
+      if (Math.abs(dy) < 80) follow(e, px, 2.0, 150);
+      else follow(e, px + e.side * 52, 1.4, 120);
     },
     limo(g, e, dt) {
       const P = g.player, dy = e.y - P.y;
       e.evT = g.cruise + U.clamp(dy * 0.9, -60, 90);
       if (e.blind > 0) { e.wantVx = 0; return; }
-      if (e.cool > 0) { e.cool -= dt; follow(e, P.x + e.side * 130, 1, 80); return; }
-      if (Math.abs(dy) < 100) follow(e, P.x, 1.6, 120); else follow(e, P.x + e.side * 60, 1, 80);
+      const px = aim(g, e);
+      if (e.cool > 0) { e.cool -= dt; follow(e, px + e.side * 130, 1, 80); return; }
+      if (Math.abs(dy) < 100) follow(e, px, 1.6, 120); else follow(e, px + e.side * 60, 1, 80);
     },
     gunner(g, e, dt) {
       const P = g.player, dy = e.y - P.y;
       e.evT = g.cruise + U.clamp((dy + 30) * 1.1, -90, 130);
-      const tx = U.clamp(P.x + e.side * 78, L + 18, R - 18);
+      const tx = U.clamp(aim(g, e) + e.side * 78, L + 18, R - 18);
       follow(e, tx, 1.5, 130);
       if (e.blind > 0 || e.stun > 0) return;
       e.cd -= dt;
       if (e.cd <= 0 && Math.abs(dy) < 120 && Math.abs(P.x - e.x) < 150 && P.alive && !P.docked) {
         e.burst = 3; e.cd = U.rand(2.0, 3.2);
       }
-      if (e.burst > 0) { e.bt = (e.bt || 0) - dt; if (e.bt <= 0) { e.bt = 0.12; e.burst--; const a = Math.atan2(P.y - e.y, P.x - e.x) + U.rand(-0.06, 0.06); g.ebullet(e.x, e.y, Math.cos(a) * 380, Math.sin(a) * 380 + (g.speed - e.ev), 4, 'eb'); A.sfx.enemyShot(); } }
+      if (e.burst > 0) { e.bt = (e.bt || 0) - dt; if (e.bt <= 0) { e.bt = 0.12; e.burst--; const lead = Math.hypot(P.x - e.x, P.y - e.y) / 380, a = Math.atan2(P.y - e.y, P.x + (P.vxS || 0) * lead * 0.7 - e.x) + U.rand(-0.06, 0.06); g.ebullet(e.x, e.y, Math.cos(a) * 380, Math.sin(a) * 380 + (g.speed - e.ev), 4, 'eb');   /* leads the shot a little */ A.sfx.enemyShot(); } }
     },
     slasher(g, e, dt) {
       const P = g.player, dy = e.y - P.y;
       e.evT = g.cruise + U.clamp(dy * 1.2, -90, 120);
       const dx = P.x - e.x;
-      follow(e, P.x - e.side * 30 * (Math.abs(dy) < 40 ? 0.9 : 2), 1.6, 130);
+      follow(e, aim(g, e) - e.side * 30 * (Math.abs(dy) < 40 ? 0.9 : 2), 1.6, 130);
       e.blades = Math.abs(dy) < 36 && Math.abs(dx) < 50 && e.stun <= 0 && e.blind <= 0;
       if (e.blades) {
         e.cd -= dt;
@@ -122,7 +161,7 @@
     bike(g, e, dt) {
       const P = g.player, dy = e.y - P.y;
       e.evT = g.cruise * 1.5;
-      e.wantVx = U.clamp((U.clamp(P.x, L + 20, R - 20) - e.x) * 1.2 + Math.sin(e.t * 3 + e.seed) * 50, -120, 120);
+      e.wantVx = U.clamp((U.clamp(aim(g, e), L + 20, R - 20) - e.x) * 1.2 + Math.sin(e.t * 3 + e.seed) * 50, -120, 120);
       if (dy < -80) e.wantVx *= 0.3;
     },
     heli(g, e, dt) { airAI(g, e, dt, false); },
@@ -230,6 +269,7 @@
         if (e.stun > 0) { e.evT = e.ev * 0.97; e.wantVx = 0; }
         else if (docking && !e.obst) { e.evT = g.cruise * (e.team === 'civ' ? e.rate : 0.7); e.wantVx = 0; e.blades = false; e.x = U.clamp(e.x, L + 14, R - 14); }        /* while you are in the truck, traffic keeps to its lane and ignores you */
         else if (AI[e.kind]) AI[e.kind](g, e, dt); else AI.civ(g, e, dt);
+        if (!e.obst && e.stun <= 0 && V.avoidOn !== false) avoid(g, e);
         if (tk && !e.obst) avoidTruck(e, tk, dt);
         e.ev += (e.evT - e.ev) * Math.min(1, 2.2 * dt);
         e.vx += (e.wantVx - e.vx) * Math.min(1, 4 * dt);
@@ -276,7 +316,11 @@
         if (imp > 90 && (e.kind === 'sedan' || e.kind === 'limo' || e.kind === 'patrol')) e.cool = 1.6;       /* a rammer backs off after it connects */
         const dm = Math.min(7, Math.max(0, (imp - 120) * 0.035) * (em / (em + pm)) * 2);
         if (dm > 0) g.hurtPlayer(dm, e.x, imp);
-        if (imp > 120 && e.team !== 'neutral') V.damage(g, e, (imp - 100) / 130 * (pm / (pm + em)) * 2.2, 'player');
+        if (imp > 120 && e.team !== 'neutral') {
+          let dmg = (imp - 100) / 130 * (pm / (pm + em)) * 2.2;
+          if (P.bumpT > 0) { if (e.bumpId === P.bumpId) dmg = 0; else { e.bumpId = P.bumpId; dmg = Math.min(1.6, dmg); } }   /* a bump shoves hard but does not wreck a car outright, and only counts once */
+          if (dmg > 0) V.damage(g, e, dmg, 'player');
+        }
         if (imp > 100) { FX.sparks((e.x + P.x) / 2, (e.y + P.y) / 2, 7, 160, 'hsla(50,100%,70%,1)', 0.3, 1.4); A.sfx.crash(); if (g.time - (P.shakeT || 0) > 0.25) { P.shakeT = g.time; FX.addShake(Math.min(1.5, imp / 200)); } }
       }
     }

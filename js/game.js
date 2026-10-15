@@ -11,6 +11,7 @@
       x: W / 2, y: C.CAR_Y, vx: 0, w: 27, h: 54, mass: 1, dmg: 0, mode: 'car', ammo: { mg: 120, missile: 2, oil: 2, smoke: 1, emp: 0, shield: 0 }, armor: 0, armorInt: 1, shield: 0, shieldT: 0,
       invuln: 2.5, alive: true, fireCd: 0, mz: 0, alt: false, docked: false, conv: null, smokeT: 0, pull: 0, armorBroken: false, dry: 0, flash: 0, edgeT: 0, t: 0, ev: 0,
       tb: 100, tbRest: 0, tbLock: false, tbOn: false, boost: 0, offT: 0,                       /* the turbo meter, and how long the car has been on the verge */
+      bumpT: 0, bumpCd: 0, bumpDir: 0, vxS: 0, steer: 0,                                      /* the bump shove, and what the enemy AI reads to predict where you are heading */
     };
   }
 
@@ -47,7 +48,7 @@
     if (!P.alive || P.invuln > 0 || P.docked || P.conv || (G.debug && G.debug.god)) return;
     if (srcX !== undefined && imp) P.vx += (P.x >= srcX ? 1 : -1) * Math.min(200, imp * 0.4) / P.mass * 0.4 * (1 - 0.6 * P.boost);
     if (this.demo) { P.dmg = Math.min(70, P.dmg + amount * 0.25); return; }
-    amount *= 0.62 * (1 - 0.14 * P.armor * P.armorInt) * (1 - 0.55 * P.boost);                 /* hits are survivable, armor helps, and the turbo shrugs most of them off */
+    amount *= 0.62 * (1 - 0.14 * P.armor * P.armorInt) * (1 - 0.55 * P.boost) * (P.bumpT > 0 ? 0.5 : 1);                 /* hits are survivable, armor helps, and the turbo shrugs most of them off */
     if (P.shield > 0) {
       const ab = Math.min(P.shield, amount); P.shield -= ab; amount -= ab;
       FX.ring(P.x, P.y, 14, 44, 'hsla(190,100%,70%,1)', 0.25, 3); A.sfx.shieldHit();
@@ -213,6 +214,13 @@
     if (P.boost > 0.1 && P.alive) FX.trail(P.x + U.rand(-5, 5), P.y + 30, 'hsla(' + Math.round(U.rand(18, 45)) + ',100%,62%,1)', U.rand(6, 11) * P.boost + 3, 0.22);
   };
 
+  Game.bump = function (P, dir) {
+    P.bumpDir = dir; P.bumpT = C.BUMP_T; P.bumpCd = C.BUMP_CD; P.bumpId = (P.bumpId || 0) + 1;
+    A.sfx.bump(); FX.addShake(1.3);
+    FX.ring(P.x + dir * 14, P.y, 6, 56, 'hsla(190,100%,75%,1)', 0.25, 3);
+    FX.sparks(P.x - dir * 14, P.y + 8, 9, 220, 'hsla(190,100%,75%,1)', 0.25, 1.3);
+  };
+
   Game.updatePlayer = function (dt, pf) {
     const P = this.player;
     P.t += dt;
@@ -223,7 +231,7 @@
     if (!P.alive) return;
     P.armorInt = U.clamp(1 - P.dmg / 70, 0, 1);
     if (P.armor > 0 && P.armorInt <= 0 && !P.armorBroken) { P.armorBroken = true; FX.text(P.x, P.y - 40, 'ARMOR BROKEN', '#ff8a4a', 18); A.sfx.armorBreak(); }
-    P.mass = (1 + 0.35 * P.armor * P.armorInt + (P.mode === 'boat' ? 0.15 : 0)) * (1 + 0.5 * P.boost);   /* the turbo makes you hard to shove */
+    P.mass = (1 + 0.35 * P.armor * P.armorInt + (P.mode === 'boat' ? 0.15 : 0)) * (1 + 0.5 * P.boost) * (P.bumpT > 0 ? 2.2 : 1);   /* the turbo, and a bump, make you hard to shove and hit hard */
 
     if (P.conv) {
       P.conv.t += dt;
@@ -234,6 +242,12 @@
 
     const car = P.mode === 'car', ap = this.demo ? this.autopilot() : null;
     const ax = ap ? ap.axis : I.axis(P.x);
+    P.steer = ax; P.vxS += (P.vx - P.vxS) * Math.min(1, 5 * dt);
+    P.bumpCd = Math.max(0, P.bumpCd - dt);
+    if (!ap) {                                                                  /* the bump: a sudden hard shove sideways that sends cars flying */
+      const bl = I.takeBumpL(), br = I.takeBumpR();
+      if (bl !== br) { if (P.bumpCd <= 0 && P.bumpT <= 0 && !P.conv) this.bump(P, br ? 1 : -1); else this.flashHud('bump'); }
+    }
     const accel = (car ? 1750 : 1250) * pf.steer;
     P.vx += ax * accel * dt;
     if (P.dmg > 55) P.pull = (P.pullDir || (P.pullDir = U.chance(0.5) ? 1 : -1)) * (P.dmg - 55) * 3.4; else { P.pull = 0; P.pullDir = 0; }
@@ -241,7 +255,14 @@
     if (!car) P.vx += this.flow(P.x, P.y) * dt * 0.8;
     P.vx -= P.vx * Math.min(1, (car ? 5.6 : 2.7) * dt);
     P.vx = U.clamp(P.vx, -(car ? 360 : 300), car ? 360 : 300);
+    if (P.bumpT > 0) {                                                          /* mid-bump: fast sideways, easing off, never carried off the road */
+      P.bumpT -= dt;
+      P.vx = P.bumpDir * (200 + (C.BUMP_V - 200) * Math.max(0, P.bumpT / C.BUMP_T));
+      FX.trail(P.x - P.bumpDir * 10, P.y + U.rand(-16, 16), 'hsla(190,100%,70%,1)', 9, 0.18);
+      if (P.bumpT <= 0) { P.bumpT = 0; I.mouseX = P.x; if ((P.x < L + 34 && P.vx < 0) || (P.x > R - 34 && P.vx > 0)) P.vx = 0; }
+    }
     P.x += P.vx * dt;
+    if (P.bumpT > 0) P.x = U.clamp(P.x, L + 14, R - 14);
     P.y += (C.CAR_Y - P.y) * Math.min(1, 5 * dt);
 
     if (car) {
@@ -342,6 +363,7 @@
     this.drawPlayer(ctx);
     G.truck.drawInside(ctx, this);
     this.drawSpeedLines(ctx);
+    this.drawMouseMark(ctx);
     Wp.drawSmoke(ctx, this);
     FX.drawNorm(ctx);
     Wp.drawShots(ctx, this);
@@ -350,6 +372,17 @@
     FX.drawAdd(ctx);
     ctx.globalCompositeOperation = 'source-over';
     FX.drawText(ctx);
+  };
+  /* with the mouse locked there is no cursor on screen, so a faint marker shows where the mouse is steering the car to */
+  Game.drawMouseMark = function (ctx) {
+    const P = this.player;
+    if (this.demo || !P.alive || P.docked || !I.mouseActive || !I.locked()) return;
+    const x = I.mouseX, y = C.CAR_Y + 52;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(120,235,255,0.2)'; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+    ctx.beginPath(); ctx.moveTo(x, y - 90); ctx.lineTo(x, y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(120,235,255,0.55)'; ctx.beginPath(); ctx.moveTo(x, y - 7); ctx.lineTo(x + 6, y + 4); ctx.lineTo(x - 6, y + 4); ctx.closePath(); ctx.fill();
+    ctx.restore();
   };
   /* the turbo: streaks race past the car */
   Game.drawSpeedLines = function (ctx) {

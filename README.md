@@ -14,13 +14,16 @@ These are the defaults. **Every key can be changed** in Settings > Controls: cli
 | --- | --- |
 | Steer | `←` `→` or `A` `D`, or move the mouse |
 | Machine gun | `Space` or left mouse button |
-| **Turbo** (hold) | `Shift`, `W` or `↑` |
+| **Turbo** (hold) | `Shift` or `W` |
+| **Bump** (hard shove sideways) | `Q` left, `E` right (about a one second cooldown) |
 | Missile (homing) | `C` or right mouse button |
 | Oil slick (mines on the water) | `Z` |
 | Smoke screen | `X` |
 | EMP burst | `V` |
 | Shield | `B` |
 | Pause | `P` or `Esc` |
+
+The **mouse is locked to the game** while you drive (steer by moving it; a faint marker shows where you are steering to). Pausing, the shop, game over and `Esc` release it, and clicking **Resume** locks it again. You can turn this off in Settings > Controls. The **bump** is a sudden, heavy sideways slam: it throws cars across the road and off it, and you take less damage while it lasts, but it has a cooldown and it will send a civilian flying just as happily (-500).
 
 The car cruises by itself: there is no gas or brake, but you do have a **turbo**. Hold it to blast away from the pack: enemies cannot match your speed, you shrug off most hits and are hard to shove while it burns. It drains fast and refills slowly, and locks out until it has recharged a little. Every weapon and gadget has limited ammo, which you refill at the supply truck.
 

@@ -25,6 +25,9 @@
     CAR_Y: 596,                                               /* where your car sits on the screen */
     SPEED: 300,                                               /* cruising speed in road pixels per second */
     START_LIVES: 3,
+    BUMP_V: 640,                                              /* sideways speed of a bump (the car is heavy and hits hard while it lasts) */
+    BUMP_T: 0.3,                                              /* how long a bump lasts, in seconds */
+    BUMP_CD: 1.1,                                             /* and how long before the next one */
     TURBO_MUL: 0.85,                                          /* extra road speed at full turbo (1 + this) */
     TURBO_DRAIN: 36,                                          /* meter per second while boosting (the meter is 100) */
     TURBO_REGEN: 15,                                          /* meter per second while resting */
@@ -35,7 +38,7 @@
   C.laneX = (i) => C.ROAD_L + C.LANE_W * (i + 0.5);
 
   const KEY = 'spyspacehunter.settings.v1';
-  const defaults = { master: 0.8, music: 0.6, sfx: 0.9, bloom: true, shake: true, reduced: false, mouseSteer: true, steerSens: 1, turboToggle: false, liteAudio: false };
+  const defaults = { master: 0.8, music: 0.6, sfx: 0.9, bloom: true, shake: true, reduced: false, mouseSteer: true, mouseLock: true, steerSens: 1, turboToggle: false, liteAudio: false };
 
   const S = Object.assign({}, defaults);
   let hadSaved = false;

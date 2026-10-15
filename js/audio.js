@@ -187,6 +187,7 @@
   X.sputter = () => { if (gate('spu', 200)) { noise({ type: 'lowpass', f0: 600, dur: 0.06, vol: 0.12 }); tone({ type: 'pulse25', f0: 90, f1: 60, dur: 0.08, vol: 0.08 }); } };
   X.transform = () => { [262, 330, 392, 523, 659, 784, 1047, 1319].forEach((f, i) => tone({ type: 'pulse25', f0: f, dur: 0.09, vol: 0.1, delay: i * 0.055 })); noise({ type: 'bandpass', f0: 800, f1: 3000, dur: 0.5, vol: 0.1, q: 1 }); };
   X.turbo = () => { noise({ type: 'bandpass', f0: 500, f1: 4200, dur: 0.6, vol: 0.2, q: 0.9 }); tone({ type: 'pulse25', f0: 110, f1: 520, dur: 0.5, vol: 0.12 }); tone({ type: 'pulse12', f0: 220, f1: 1040, dur: 0.45, vol: 0.06, delay: 0.04 }); };
+  X.bump = () => { noise({ type: 'bandpass', f0: 2400, f1: 500, dur: 0.22, vol: 0.14, q: 0.8 }); tone({ type: 'pulse50', f0: 190, f1: 60, dur: 0.2, vol: 0.1 }); tone({ type: 'triangle', f0: 95, f1: 45, dur: 0.24, vol: 0.14 }); };
   X.turboOut = () => { tone({ type: 'pulse50', f0: 220, f1: 90, dur: 0.18, vol: 0.09 }); noise({ type: 'lowpass', f0: 1200, f1: 200, dur: 0.2, vol: 0.1 }); };
   X.turboReady = () => { tone({ type: 'pulse25', f0: 880, dur: 0.05, vol: 0.07 }); tone({ type: 'pulse25', f0: 1320, dur: 0.08, vol: 0.07, delay: 0.05 }); };
   X.dock = () => { [392, 523, 659].forEach((f, i) => tone({ type: 'pulse25', f0: f, dur: 0.1, vol: 0.1, delay: i * 0.07 })); tone({ type: 'triangle', f0: 130, dur: 0.5, vol: 0.2 }); };

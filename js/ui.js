@@ -82,7 +82,7 @@
     const h = $('titleHint');
     if (!h) return;
     const L = (id) => '<b>' + esc(I.label(id)) + '</b>';
-    h.innerHTML = '<b>' + esc(I.steerText()) + '</b>: steer &nbsp; ' + L('fire') + ' / click: machine gun &nbsp; ' + L('turbo') + (S.turboToggle ? ' toggle' : ' hold') + ': turbo &nbsp; ' + L('oil') + ' oil / mines &nbsp; ' + L('smoke') + ' smoke &nbsp; ' +
+    h.innerHTML = '<b>' + esc(I.steerText()) + '</b>: steer &nbsp; ' + L('fire') + ' / click: machine gun &nbsp; ' + L('turbo') + (S.turboToggle ? ' toggle' : ' hold') + ': turbo &nbsp; ' + L('bumpL') + ' ' + L('bumpR') + ' bump &nbsp; ' + L('oil') + ' oil / mines &nbsp; ' + L('smoke') + ' smoke &nbsp; ' +
       L('missile') + ' missile &nbsp; ' + L('emp') + ' EMP &nbsp; ' + L('shield') + ' shield &nbsp; ' + L('pause') + ': pause &nbsp; <span class="hintlink">(rebind in SETTINGS)</span>';
   };
   function keyMsg(text, bad) {
@@ -146,6 +146,7 @@
     g.innerHTML = '<h3>CONTROLS</h3>' +
       '<label>Steering sensitivity <input id="setSens" type="range" min="0.6" max="1.8" step="0.1"></label>' +
       '<label class="check kbonly"><input id="setMouse" type="checkbox"> Steer with the mouse</label>' +
+      '<label class="check kbonly"><input id="setLock" type="checkbox"> Lock the mouse to the game while driving (pause, shop and Esc release it)</label>' +
       '<label class="check"><input id="setTurboTog" type="checkbox"> Toggle turbo (press once to turn it on, again to turn it off)</label>' +
       '<div class="kbonly"><div class="keyhead"><span>KEYBOARD</span><span>KEY 1</span><span>KEY 2</span></div><div id="keyRows"></div>' +
       '<div class="keyfoot"><button id="btnKeysReset">RESET KEYS</button><span id="keyMsg" role="status"></span></div>' +
@@ -158,6 +159,8 @@
     q('setSens').addEventListener('change', () => A.sfx.blip());
     q('setMouse').checked = S.mouseSteer !== false;
     q('setMouse').addEventListener('change', (e) => { S.mouseSteer = e.target.checked; if (!S.mouseSteer) I.mouseActive = false; S.save(); A.sfx.blip(); UI.refreshHint(); I.version++; });
+    q('setLock').checked = S.mouseLock !== false;
+    q('setLock').addEventListener('change', (e) => { S.mouseLock = e.target.checked; if (!S.mouseLock) I.releaseLock(); S.save(); A.sfx.blip(); });
     q('setTurboTog').checked = !!S.turboToggle;
     q('setTurboTog').addEventListener('change', (e) => { S.turboToggle = e.target.checked; I.turbo = false; S.save(); A.sfx.blip(); UI.refreshHint(); I.version++; });
     q('btnKeysReset').addEventListener('click', () => { I.resetBinds(); stopListen(); keyMsg('Keys reset to the defaults.'); A.sfx.select(); UI.refreshHint(); });

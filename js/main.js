@@ -130,9 +130,10 @@
     A.resume();
     I.clear();
     Game.reset(false);
-    Game.onOver = () => { M.mode = 'over'; UI.showGameOver(Game.score, Game.lap + 1); };
+    Game.onOver = () => { M.mode = 'over'; I.releaseLock(); UI.showGameOver(Game.score, Game.lap + 1); };
     M.mode = 'play';
     UI.hideAll();
+    I.requestLock();
     A.sfx.start();
     A.music(C.ZONES[0].music);
   };
@@ -140,6 +141,7 @@
     Game.onOver = null;
     Game.reset(true);
     M.mode = 'title';
+    I.releaseLock();
     UI.lastIdx = -1;
     UI.show('title');
     if (A.ctx && A.ctx.state === 'suspended') A.ctx.resume();
@@ -149,16 +151,17 @@
     if (M.mode !== 'play') return;
     M.mode = 'pause';
     I.clear();
+    I.releaseLock();
     if (A.ctx) A.ctx.suspend();
     UI.show('pause');
   };
   M.openShop = function () {
-    M.mode = 'shop'; I.clear();
+    M.mode = 'shop'; I.clear(); I.releaseLock();
     UI.showShop(); A.music('shop');
   };
   M.closeShop = function () {
     if (M.mode !== 'shop') return;
-    M.mode = 'play'; I.resync(); UI.hideAll();
+    M.mode = 'play'; I.resync(); UI.hideAll(); I.requestLock();
     Game.closeShop();
     A.music(C.ZONES[Math.max(0, Game.zone)].music);
   };
@@ -167,8 +170,11 @@
     M.mode = 'play';
     I.resync();
     UI.hideAll();
+    I.requestLock();
     if (A.ctx) A.ctx.resume();
   };
+  /* lock lost while driving (you pressed Esc, or the window lost focus): that is a pause */
+  I.onLockChange = (on) => { if (!on && M.mode === 'play' && I.wantsLock()) M.pause(); };
 
   let last = 0, acc = 0, musicKicked = false;
   M._render = (dt) => render(dt);
