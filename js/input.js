@@ -1,12 +1,12 @@
 /* Keyboard + mouse + touch input. The car cruises by itself: you steer left / right, fire, and use the gadgets. */
 (function (G) {
   'use strict';
-  const I = { left: false, right: false, fire: false, stick: 0, mouseX: 0, mouseActive: false, _oil: false, _smoke: false, _missile: false, _emp: false, _shield: false, _pause: false, _any: false };
-  const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyA', 'KeyD', 'KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB']);
+  const I = { left: false, right: false, fire: false, turbo: false, stick: 0, mouseX: 0, mouseActive: false, _oil: false, _smoke: false, _missile: false, _emp: false, _shield: false, _pause: false, _any: false };
+  const GAME_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyA', 'KeyD', 'KeyW', 'ShiftLeft', 'ShiftRight', 'KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB']);
   const take = (k) => () => { const b = I[k]; I[k] = false; return b; };
   I.takeOil = take('_oil'); I.takeSmoke = take('_smoke'); I.takeMissile = take('_missile'); I.takeEmp = take('_emp'); I.takeShield = take('_shield');
   I.takePause = take('_pause'); I.takeAny = take('_any');
-  I.clear = () => { I.left = I.right = I.fire = false; I.stick = 0; I._oil = I._smoke = I._missile = I._emp = I._shield = I._pause = I._any = false; };
+  I.clear = () => { I.left = I.right = I.fire = I.turbo = false; I.stick = 0; I._oil = I._smoke = I._missile = I._emp = I._shield = I._pause = I._any = false; };
 
   function typing(t) { const n = t && t.tagName; return n === 'INPUT' || n === 'TEXTAREA' || n === 'SELECT'; }
 
@@ -16,6 +16,7 @@
     if (c === 'ArrowLeft' || c === 'KeyA') { I.left = true; I.mouseActive = false; }
     else if (c === 'ArrowRight' || c === 'KeyD') { I.right = true; I.mouseActive = false; }
     else if (c === 'Space') I.fire = true;
+    else if (c === 'ShiftLeft' || c === 'ShiftRight' || c === 'KeyW' || c === 'ArrowUp') I.turbo = true;
     else if (c === 'KeyZ' && !e.repeat) I._oil = true;
     else if (c === 'KeyX' && !e.repeat) I._smoke = true;
     else if (c === 'KeyC' && !e.repeat) I._missile = true;
@@ -30,6 +31,7 @@
     if (c === 'ArrowLeft' || c === 'KeyA') I.left = false;
     else if (c === 'ArrowRight' || c === 'KeyD') I.right = false;
     else if (c === 'Space') I.fire = false;
+    else if (c === 'ShiftLeft' || c === 'ShiftRight' || c === 'KeyW' || c === 'ArrowUp') I.turbo = false;
   });
   window.addEventListener('blur', () => I.clear());
 

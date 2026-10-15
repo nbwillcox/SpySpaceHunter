@@ -10,13 +10,14 @@
     return {
       x: W / 2, y: C.CAR_Y, vx: 0, w: 27, h: 54, mass: 1, dmg: 0, mode: 'car', ammo: { mg: 120, missile: 2, oil: 2, smoke: 1, emp: 0, shield: 0 }, armor: 0, armorInt: 1, shield: 0, shieldT: 0,
       invuln: 2.5, alive: true, fireCd: 0, mz: 0, alt: false, docked: false, conv: null, smokeT: 0, pull: 0, armorBroken: false, dry: 0, flash: 0, edgeT: 0, t: 0, ev: 0,
+      tb: 100, tbRest: 0, tbLock: false, tbOn: false, boost: 0, offT: 0,                       /* the turbo meter, and how long the car has been on the verge */
     };
   }
 
   Game.reset = function (demo) {
     this.demo = !!demo; this.state = 'play';
     const dbg = G.debug || {}, zs = !demo && dbg.zone > 0 && dbg.zone < C.ZONES.length ? C.ZONES[dbg.zone].start + 10 : 0;
-    this.score = 0; this.credits = 0; this.lives = C.START_LIVES; this.lap = 0; this.dist = zs; this.time = 0; this.speed = C.SPEED; this.dockMul = 1; this.secT = 0;
+    this.score = 0; this.credits = 0; this.lives = C.START_LIVES; this.lap = 0; this.dist = zs; this.time = 0; this.speed = C.SPEED; this.cruise = C.SPEED; this.dockMul = 1; this.secT = 0;
     this.zone = -1; this.surface = 'road'; this.spawnT = 1.5; this.airCd = U.rand(16, 26); this.truckSeen = {}; this.convKey = '';
     this.en = []; this.pb = []; this.eb = []; this.hz = []; this.bombs = []; this.truck = null; this.dockPhase = null;
     this.player = newPlayer(); if (zs && Road.surfaceAt(zs) === 'water') this.player.mode = 'boat'; this.banner = null; this.over = false; this.overDone = false; this.respawnT = 0; this.hudFlash = {}; this.civHits = 0;
@@ -44,14 +45,16 @@
   Game.hurtPlayer = function (amount, srcX, imp) {
     const P = this.player;
     if (!P.alive || P.invuln > 0 || P.docked || P.conv || (G.debug && G.debug.god)) return;
-    if (srcX !== undefined && imp) P.vx += (P.x >= srcX ? 1 : -1) * Math.min(260, imp * 0.5) / P.mass * 0.45;
+    if (srcX !== undefined && imp) P.vx += (P.x >= srcX ? 1 : -1) * Math.min(200, imp * 0.4) / P.mass * 0.4 * (1 - 0.6 * P.boost);
     if (this.demo) { P.dmg = Math.min(70, P.dmg + amount * 0.25); return; }
-    amount *= 1 - 0.14 * P.armor * P.armorInt;
+    amount *= 0.62 * (1 - 0.14 * P.armor * P.armorInt) * (1 - 0.55 * P.boost);                 /* hits are survivable, armor helps, and the turbo shrugs most of them off */
     if (P.shield > 0) {
       const ab = Math.min(P.shield, amount); P.shield -= ab; amount -= ab;
       FX.ring(P.x, P.y, 14, 44, 'hsla(190,100%,70%,1)', 0.25, 3); A.sfx.shieldHit();
+      P.invuln = Math.max(P.invuln, 0.3);
       if (amount <= 0.01) return;
     }
+    P.invuln = Math.max(P.invuln, 0.5);                                                          /* a breather after every hit so a pile-up can't chain into a wreck */
     P.dmg = Math.min(100, P.dmg + amount); P.flash = 0.14; FX.addShake(Math.min(6, 1 + amount * 0.3)); A.sfx.hurt();
     if (P.dmg >= 100) this.loseCar(this.surface === 'water' ? 'sunk' : 'destroyed');
   };
@@ -112,16 +115,20 @@
     this.spawnT -= dt; this.airCd -= dt;
     if (this.spawnT > 0) return;
     const d = 1 + 0.18 * this.lap + Math.min(0.4, this.time / 900);
-    this.spawnT = U.rand(0.5, 1.0) / d;
+    this.spawnT = U.rand(0.8, 1.45) / d;
     const aheadDist = this.dist + C.CAR_Y + 80, surf = Road.surfaceAt(aheadDist), zi = Road.zoneIndex(((aheadDist % C.LAP) + C.LAP) % C.LAP), key = zoneKey(this, zi, surf);
     if (surf !== this.surface && Road.surfaceAt(this.dist) !== surf && surf === 'water' && this.surface === 'road') { /* the ramp is ahead: still road for now */ }
     let n = 0; for (const e of this.en) if (!e.obst && !e.air) n++;
-    if (n > 12 + this.lap * 2) return;
+    if (n > 10 + this.lap * 2) return;
     const tbl = MIX[key]; let tot = 0;
     for (const t of tbl) tot += t[1];
     let r = Math.random() * tot, kind = tbl[0][0];
     for (const t of tbl) { r -= t[1]; if (r <= 0) { kind = t[0]; break; } }
-    const sp = this.speed;
+    /* only so many attackers at once (more as the laps go by), and a quiet opening, so there is room to shoot and drive instead of just being bumped */
+    let foes = 0; for (const e of this.en) if (e.team === 'enemy' && !e.obst && !e.air) foes++;
+    const cap = Math.min(7, 2 + this.lap + Math.floor(this.time / 50)), need = kind === 'bikes' ? 3 : 1;
+    if (kind !== 'heli' && kind !== 'rock' && kind !== 'mine' && !/^civ/.test(kind) && (foes + need > cap || (this.time < 5 && surf === 'road'))) { if (surf === 'water') return; kind = 'civcar'; }
+    const sp = this.cruise;
     if (kind === 'heli') {
       if (this.airCd > 0 || this.time < 14 || this.en.some((e) => e.air)) kind = 'civcar';
       else { this.airCd = U.rand(24, 38) / (1 + 0.1 * this.lap); const big = (key === 'rapids' || key === 'river' || key === 'dockWater') && this.lap >= 0; V.spawn(this, big ? 'gunship' : 'heli', U.rand(120, W - 120), -110, { hoverY: U.rand(110, 190), pal: U.randInt(0, 7) }); A.sfx.heli(); return; }
@@ -163,9 +170,11 @@
     /* speed: cruise, slower with damage, slower while docking */
     const pf = this.perf(P), lapMul = Math.min(1.5, 1 + 0.06 * this.lap);
     let target = C.SPEED * lapMul * (z.id === 'rapids' ? 1.18 : 1) * pf.speed * this.dockMul;
-    if (P.dmg > 60 && Math.random() < 0.01) this.speed *= 0.8;                                   /* a sputter */
+    if (P.dmg > 60 && Math.random() < 0.01) this.cruise *= 0.8;                                  /* a sputter */
     if (this.respawnT > 0) target *= 0.5;
-    this.speed += (target - this.speed) * Math.min(1, 1.8 * dt);
+    this.cruise += (target - this.cruise) * Math.min(1, 1.8 * dt);                              /* the pace everyone else drives at */
+    this.turboTick(dt, P);
+    this.speed = this.cruise * (1 + C.TURBO_MUL * P.boost);                                      /* ...and yours, with the turbo on top */
     this.dist += this.speed * dt;
 
     /* one point a second for travelling */
@@ -184,6 +193,26 @@
     if (!P.alive && !this.over) { this.respawnT -= dt; if (this.respawnT <= 0) this.respawn(); }
   };
 
+  /* the turbo: hold it to leave everything behind. It drains fast, refills slowly, and locks out until it has recharged a little. */
+  Game.turboTick = function (dt, P) {
+    const ok = P.alive && !P.docked && !P.conv && !this.truck && this.respawnT <= 0 && !this.demo;
+    const want = ok && I.turbo && !P.tbLock && P.tb > 0;
+    if (want) {
+      if (!P.tbOn) { P.tbOn = true; A.sfx.turbo(); FX.addShake(3); FX.ring(P.x, P.y + 20, 8, 70, 'hsla(30,100%,65%,1)', 0.35, 3); }
+      P.tb = Math.max(0, P.tb - C.TURBO_DRAIN * dt); P.tbRest = 0.8;
+      if (P.tb <= 0) { P.tbLock = true; P.tbOn = false; A.sfx.turboOut(); this.flashHud('turbo'); }
+    } else {
+      P.tbOn = false;
+      if (ok && I.turbo && P.tbLock && !this.hudFlash.turbo) this.flashHud('turbo');
+      if (P.tbRest > 0) P.tbRest -= dt; else P.tb = Math.min(100, P.tb + C.TURBO_REGEN * dt);
+      if (P.tbLock && P.tb >= 35) { P.tbLock = false; A.sfx.turboReady(); }
+    }
+    const tgt = want ? 1 : 0;
+    P.boost += (tgt - P.boost) * Math.min(1, (tgt ? 3.4 : 2.0) * dt);
+    if (!want && P.boost < 0.01) P.boost = 0;
+    if (P.boost > 0.1 && P.alive) FX.trail(P.x + U.rand(-5, 5), P.y + 30, 'hsla(' + Math.round(U.rand(18, 45)) + ',100%,62%,1)', U.rand(6, 11) * P.boost + 3, 0.22);
+  };
+
   Game.updatePlayer = function (dt, pf) {
     const P = this.player;
     P.t += dt;
@@ -194,7 +223,7 @@
     if (!P.alive) return;
     P.armorInt = U.clamp(1 - P.dmg / 70, 0, 1);
     if (P.armor > 0 && P.armorInt <= 0 && !P.armorBroken) { P.armorBroken = true; FX.text(P.x, P.y - 40, 'ARMOR BROKEN', '#ff8a4a', 18); A.sfx.armorBreak(); }
-    P.mass = 1 + 0.35 * P.armor * P.armorInt + (P.mode === 'boat' ? 0.15 : 0);
+    P.mass = (1 + 0.35 * P.armor * P.armorInt + (P.mode === 'boat' ? 0.15 : 0)) * (1 + 0.5 * P.boost);   /* the turbo makes you hard to shove */
 
     if (P.conv) {
       P.conv.t += dt;
@@ -216,8 +245,17 @@
     P.y += (C.CAR_Y - P.y) * Math.min(1, 5 * dt);
 
     if (car) {
-      if (P.x < L + 11 || P.x > R - 11) { P.edgeT = 0.2; if (Math.random() < 0.3) { FX.sparks(P.x < W / 2 ? L - 4 : R + 4, P.y + U.rand(-20, 20), 3, 120, 'hsla(30,100%,65%,1)', 0.25, 1.3); A.sfx.rumble(); } }
-      if (P.x < L - 5 || P.x > R + 5) { if (this.demo || (G.debug && G.debug.god)) { P.x = U.clamp(P.x, L + 20, R - 20); P.vx = 0; } else this.loseCar('off'); }
+      /* the road edge: sliding onto the verge is a scare, not a wreck. The verge pulls the car back in; only a hard shove past it, or lingering out there, drops you off the road. */
+      const off = P.x < L ? L - P.x : P.x > R ? P.x - R : 0;
+      if (P.x < L + 22 || P.x > R - 22) P.edgeT = 0.2;
+      if (P.x < L + 11 || P.x > R - 11) { if (Math.random() < 0.3) { FX.sparks(P.x < W / 2 ? L - 4 : R + 4, P.y + U.rand(-20, 20), 3, 120, 'hsla(30,100%,65%,1)', 0.25, 1.3); A.sfx.rumble(); } }
+      if (off > 0) {
+        P.offT += dt; P.edgeT = 0.2;
+        P.vx += (P.x < W / 2 ? 1 : -1) * (650 + 1700 * off / C.SHOULDER) * dt;
+        if (Math.random() < 0.4) FX.sparks(P.x, P.y + U.rand(-10, 24), 2, 90, 'hsla(30,70%,55%,1)', 0.3, 1.4);
+        if (this.demo || (G.debug && G.debug.god)) { P.x = U.clamp(P.x, L + 20, R - 20); P.vx = 0; P.offT = 0; }
+        else if (off > C.SHOULDER || P.offT > 1.1) this.loseCar('off');
+      } else P.offT = Math.max(0, P.offT - 2 * dt);
     } else if (P.x < L + 14 || P.x > R - 14) {
       const sd = P.x < W / 2 ? 1 : -1; P.x = P.x < W / 2 ? L + 14 : R - 14; P.vx = sd * Math.abs(P.vx) * 0.45 + sd * 30;
       this.hurtPlayer(4, sd > 0 ? L : R, 60); FX.sparks(P.x, P.y, 5, 120, 'hsla(190,100%,75%,1)', 0.25, 1.3);
@@ -303,6 +341,7 @@
     G.truck.draw(ctx, this);
     this.drawPlayer(ctx);
     G.truck.drawInside(ctx, this);
+    this.drawSpeedLines(ctx);
     Wp.drawSmoke(ctx, this);
     FX.drawNorm(ctx);
     Wp.drawShots(ctx, this);
@@ -312,9 +351,31 @@
     ctx.globalCompositeOperation = 'source-over';
     FX.drawText(ctx);
   };
+  /* the turbo: streaks race past the car */
+  Game.drawSpeedLines = function (ctx) {
+    const b = this.player.boost;
+    if (!(b > 0.03) || this.demo) return;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    const t = this.time, span = R - L - 28;
+    for (let i = 0; i < 16; i++) {
+      const x = L + 14 + (i * 53.7 + Math.floor(i / 4) * 17) % span, v = 1500 + (i % 5) * 260, y = (t * v + i * 197) % (H + 240) - 120, len = 50 + (i % 4) * 26 * b;
+      ctx.strokeStyle = i % 2 ? 'rgba(120,235,255,' + (0.22 * b) + ')' : 'rgba(255,120,220,' + (0.2 * b) + ')'; ctx.lineWidth = 1.6 + (i % 3) * 0.6;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + len); ctx.stroke();
+    }
+    ctx.restore();
+  };
   Game.drawPlayer = function (ctx) {
     const P = this.player, spr = GFX.spr;
     if (!P.alive || P.docked) return;
+    if (P.boost > 0.03) {                                                  /* the turbo flame */
+      const b = P.boost, fl = 34 + 30 * b + Math.sin(P.t * 70) * 5, y0 = P.y + 26;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const gr = ctx.createLinearGradient(0, y0, 0, y0 + fl); gr.addColorStop(0, 'rgba(255,235,170,' + (0.9 * b) + ')'); gr.addColorStop(0.5, 'rgba(255,120,40,' + (0.55 * b) + ')'); gr.addColorStop(1, 'rgba(255,60,20,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(P.x - 9, y0); ctx.lineTo(P.x + 9, y0); ctx.lineTo(P.x, y0 + fl); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(150,240,255,' + (0.7 * b) + ')'; ctx.beginPath(); ctx.moveTo(P.x - 4, y0); ctx.lineTo(P.x + 4, y0); ctx.lineTo(P.x, y0 + fl * 0.55); ctx.closePath(); ctx.fill();
+      GFX.drawGlow(ctx, 'rgba(255,150,60,1)', P.x, y0 + 8, 34 + 20 * b, 0.6 * b);
+      ctx.restore();
+    }
     const blink = P.invuln > 0 && !P.conv ? (Math.floor(P.t * 14) % 2 ? 0.35 : 0.95) : 1;
     const boat = P.mode === 'boat';
     let sx = 1, sy = 1, img = boat ? spr.pboat : spr.sport;

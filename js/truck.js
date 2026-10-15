@@ -65,7 +65,7 @@
       const inside = tk.kind === 'barge' ? tk.y + 150 : tk.y + CAB + GAP + 110;
       P.x += (tk.x - P.x) * Math.min(1, 8 * dt); P.y += (inside - P.y) * Math.min(1, 8 * dt); P.vx = 0;
       g.dockMul = Math.max(0, 1 - k * 1.05);
-      if (tk.t > 2.8) { tk.state = 'shop'; g.dockMul = 0; g.speed = 0; g.openShop(); }
+      if (tk.t > 2.8) { tk.state = 'shop'; g.dockMul = 0; g.speed = 0; g.cruise = 0; g.openShop(); }
     } else if (tk.state === 'shop') {
       /* the game is paused by the main loop; nothing moves */
     } else if (tk.state === 'exit') {                                     /* the car backs out of the ramp, the truck rolls on */

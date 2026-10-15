@@ -25,6 +25,10 @@
     CAR_Y: 596,                                               /* where your car sits on the screen */
     SPEED: 300,                                               /* cruising speed in road pixels per second */
     START_LIVES: 3,
+    TURBO_MUL: 0.85,                                          /* extra road speed at full turbo (1 + this) */
+    TURBO_DRAIN: 36,                                          /* meter per second while boosting (the meter is 100) */
+    TURBO_REGEN: 15,                                          /* meter per second while resting */
+    SHOULDER: 34,                                             /* how far past the road edge the car can slide before it falls off */
     ZONES,
     LAP: t,
   };

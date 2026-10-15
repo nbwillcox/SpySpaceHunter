@@ -70,7 +70,7 @@
   }
   const AI = {
     civ(g, e, dt) {
-      e.evT = g.speed * e.rate;
+      e.evT = g.cruise * e.rate;
       const o = ahead(g, e); if (o) e.evT = Math.min(e.evT, o.ev - 4);
       e.wantVx = (e.laneT === undefined ? 0 : U.clamp((e.laneT - e.x) * 2, -70, 70));
       e.cd -= dt;
@@ -79,23 +79,23 @@
     },
     sedan(g, e, dt) {                                                      /* a bumper-car ram: get alongside, then swing in */
       const P = g.player, dy = e.y - P.y;
-      e.evT = g.speed + U.clamp(dy * 1.1, -90, 130);
+      e.evT = g.cruise + U.clamp(dy * 1.1, -90, 130);
       if (e.blind > 0) { e.wantVx = 0; return; }
       e.cd -= dt;
       if (e.cool > 0) { e.cool -= dt; follow(e, P.x + e.side * 120, 1.2, 130); return; }
-      if (Math.abs(dy) < 80) { follow(e, P.x, 2.4, 190); if (Math.abs(P.x - e.x) < 34) e.cool = 0; }
+      if (Math.abs(dy) < 80) follow(e, P.x, 2.0, 150);
       else follow(e, P.x + e.side * 52, 1.4, 120);
     },
     limo(g, e, dt) {
       const P = g.player, dy = e.y - P.y;
-      e.evT = g.speed + U.clamp(dy * 0.9, -60, 90);
+      e.evT = g.cruise + U.clamp(dy * 0.9, -60, 90);
       if (e.blind > 0) { e.wantVx = 0; return; }
       if (e.cool > 0) { e.cool -= dt; follow(e, P.x + e.side * 130, 1, 80); return; }
       if (Math.abs(dy) < 100) follow(e, P.x, 1.6, 120); else follow(e, P.x + e.side * 60, 1, 80);
     },
     gunner(g, e, dt) {
       const P = g.player, dy = e.y - P.y;
-      e.evT = g.speed + U.clamp((dy + 30) * 1.1, -90, 130);
+      e.evT = g.cruise + U.clamp((dy + 30) * 1.1, -90, 130);
       const tx = U.clamp(P.x + e.side * 78, L + 18, R - 18);
       follow(e, tx, 1.5, 130);
       if (e.blind > 0 || e.stun > 0) return;
@@ -107,18 +107,18 @@
     },
     slasher(g, e, dt) {
       const P = g.player, dy = e.y - P.y;
-      e.evT = g.speed + U.clamp(dy * 1.2, -90, 120);
+      e.evT = g.cruise + U.clamp(dy * 1.2, -90, 120);
       const dx = P.x - e.x;
       follow(e, P.x - e.side * 30 * (Math.abs(dy) < 40 ? 0.9 : 2), 1.6, 130);
       e.blades = Math.abs(dy) < 36 && Math.abs(dx) < 50 && e.stun <= 0 && e.blind <= 0;
       if (e.blades) {
         e.cd -= dt;
-        if (e.cd <= 0) { e.cd = 0.4; g.hurtPlayer(5, e.x, 120); FX.sparks((e.x + P.x) / 2, P.y, 6, 150, 'hsla(50,100%,70%,1)', 0.3, 1.4); A.sfx.scrape(); }
+        if (e.cd <= 0) { e.cd = 0.6; g.hurtPlayer(3, e.x, 90); FX.sparks((e.x + P.x) / 2, P.y, 6, 150, 'hsla(50,100%,70%,1)', 0.3, 1.4); A.sfx.scrape(); }
       }
     },
     bike(g, e, dt) {
       const P = g.player, dy = e.y - P.y;
-      e.evT = g.speed * 1.5;
+      e.evT = g.cruise * 1.5;
       e.wantVx = U.clamp((P.x - e.x) * 1.2 + Math.sin(e.t * 3 + e.seed) * 50, -120, 120);
       if (dy < -80) e.wantVx *= 0.3;
     },
@@ -168,7 +168,7 @@
     if (hit.ox < hit.oy * 0.85) {                                           /* side swipe */
       const n = b.x >= a.x ? 1 : -1, rel = (b.vx - a.vx) * n;
       a.x -= n * hit.ox * mb / tot; b.x += n * hit.ox * ma / tot;
-      imp = Math.max(-rel, 0) * 1.3 + 85;
+      imp = Math.max(-rel, 0) * 1.05 + 62;
       a.vx -= n * imp * mb / tot; b.vx += n * imp * ma / tot;
     } else {                                                                /* rear-ending: the faster one gives way */
       const n = b.y >= a.y ? 1 : -1, ra = a.ev, rb = b.ev, rel = (ra - rb) * -n;
@@ -200,7 +200,7 @@
       }
       if (e.air) { if (AI[e.kind]) AI[e.kind](g, e, dt); e.vx += (e.wantVx - e.vx) * Math.min(1, 3 * dt); e.x += e.vx * dt; e.ang = e.vx * 0.0016; continue; }
       if (e.loss > 0) {
-        e.loss -= dt; e.ang += e.spin * dt; e.vx *= Math.max(0, 1 - 0.7 * dt); e.evT = g.speed * 0.75;
+        e.loss -= dt; e.ang += e.spin * dt; e.vx *= Math.max(0, 1 - 0.7 * dt); e.evT = g.cruise * 0.75;
         e.ev += (e.evT - e.ev) * Math.min(1, 2 * dt);
         if (e.loss <= 0) { e.spin = 0; }
       } else {
@@ -241,14 +241,15 @@
       if (Math.abs(e.y - P.y) > (e.h + P.h) / 2 || Math.abs(e.x - P.x) > (e.w + P.w) / 2) continue;
       if (e.kind === 'mine') { e.near = true; V.kill(g, e, 'mine'); continue; }
       const pm = P.mass, em = e.mass, ev0 = P.vx;
-      const mine = { x: P.x, y: P.y, w: P.w, h: P.h, vx: P.vx, ev: g.speed, mass: pm, evT: 0 };
+      const mine = { x: P.x, y: P.y, w: P.w, h: P.h, vx: P.vx, ev: g.cruise, mass: pm, evT: 0 };
       const imp = bump(g, mine, e);
       if (!imp) continue;
       P.x = mine.x; P.vx = mine.vx; P.y += (mine.y - P.y) * 0.4;
       if (e.kind === 'rock') { g.hurtPlayer(Math.min(34, 10 + Math.abs(imp) * 0.06), e.x, imp); FX.sparks(P.x, P.y - 10, 8, 180, 'hsla(50,100%,70%,1)', 0.35, 1.6); A.sfx.crash(); }
       else {
         e.lastHit = 'player';
-        const dm = Math.max(0, (imp - 95) * 0.045) * (em / (em + pm)) * 2;
+        if (imp > 90 && (e.kind === 'sedan' || e.kind === 'limo' || e.kind === 'patrol')) e.cool = 1.6;       /* a rammer backs off after it connects */
+        const dm = Math.min(7, Math.max(0, (imp - 120) * 0.035) * (em / (em + pm)) * 2);
         if (dm > 0) g.hurtPlayer(dm, e.x, imp);
         if (imp > 120 && e.team !== 'neutral') V.damage(g, e, (imp - 100) / 130 * (pm / (pm + em)) * 2.2, 'player');
         if (imp > 100) { FX.sparks((e.x + P.x) / 2, (e.y + P.y) / 2, 7, 160, 'hsla(50,100%,70%,1)', 0.3, 1.4); A.sfx.crash(); FX.addShake(Math.min(5, imp / 90)); }

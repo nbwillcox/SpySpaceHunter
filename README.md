@@ -12,6 +12,7 @@ Everything is generated in code: the cars, boats, trucks and scenery are vector-
 | --- | --- |
 | Steer | `←` `→` or `A` `D`, or move the mouse |
 | Machine gun | `Space` or left mouse button |
+| **Turbo** (hold) | `Shift`, `W` or `↑` |
 | Missile (homing) | `C` or right mouse button |
 | Oil slick (mines on the water) | `Z` |
 | Smoke screen | `X` |
@@ -19,11 +20,11 @@ Everything is generated in code: the cars, boats, trucks and scenery are vector-
 | Shield | `B` |
 | Pause | `P` or `Esc` |
 
-The car cruises by itself: there is no gas or brake. Every weapon and gadget has limited ammo, which you refill at the supply truck.
+The car cruises by itself: there is no gas or brake, but you do have a **turbo**. Hold it to blast away from the pack: enemies cannot match your speed, you shrug off most hits and are hard to shove while it burns. It drains fast and refills slowly, and locks out until it has recharged a little. Every weapon and gadget has limited ammo, which you refill at the supply truck.
 
 ### On a phone or tablet
 
-Play in portrait. A floating thumb-stick on the left steers, **FIRE** (hold) is the machine gun, and small buttons on the right are the missile, oil / mines, smoke, EMP and shield. The pause button opens the menu. The on-screen controls appear on touch devices automatically; Settings has size, opacity and a left-handed layout. Use your browser's *Add to Home Screen* to install it as a full-screen app.
+Play in portrait. A floating thumb-stick on the left steers, **FIRE** (hold) is the machine gun, **TURBO** (hold) zips you away from trouble, and small buttons on the right are the missile, oil / mines, smoke, EMP and shield. The pause button opens the menu. The on-screen controls appear on touch devices automatically; Settings has size, opacity and a left-handed layout. Use your browser's *Add to Home Screen* to install it as a full-screen app.
 
 ## Gameplay
 
@@ -31,7 +32,7 @@ Play in portrait. A floating thumb-stick on the left steers, **FIRE** (hold) is 
 - **The loop:** Neon City, Dust Belt (desert), Little Haven (small town), Harbor Ramp (your car turns into a boat), Roaring Rapids, Quiet River, Harbor Exit (back to a car), and round again. Every lap is a little faster and busier.
 - **Enemies:** side-ramming sedans, nearly bulletproof black limos, gunner cars, tire-slashers, motorbike packs, and bombing helicopters (only missiles and the EMP take those down reliably). On the water: patrol boats, gunboats, floating mines, rocks and a gunship helicopter. Enemy cars come in midnight blue, black and dark velvet red, plus two-tone mixes.
 - **Civilians** (ordinary traffic) are not targets: shooting or wrecking one costs 500 points.
-- **Losing a car:** you have 3. You lose one if you are knocked off the road or destroyed. Damage shows as smoke, then fire, and costs you speed and handling. Armor makes your car heavier and harder to shove around; when it breaks, the car is lighter again.
+- **Losing a car:** you have 3. You lose one if you are destroyed or knocked well off the road. Brushing the road edge or getting shoved onto the verge is survivable: it pulls you back in, so steer back quickly, because a hard shove or lingering out there drops you off. Every hit gives you a brief breather so pile-ups cannot chain into a wreck. Damage shows as smoke, then fire, and costs you speed and handling. Armor makes your car heavier and harder to shove around; when it breaks, the car is lighter again.
 - **The supply truck** (an old-school red semi, a barge on the water) drifts in from the top with no warning. Line up with its rear ramp to drive in; it slows the world, pulls over, and the shop opens. Spend credits on ammo, gadgets, shield charges, armor plating and repairs. Miss it and it is gone.
 - **Water zones:** the dangers are all destruction-based, there is no falling off the road. Mines and rocks hurt, boats ram and shoot, and the rapids push you sideways.
 - Local top-10 high scores with arcade-style 3-letter initials (stored in your browser).

@@ -100,6 +100,18 @@
       txt(ctx, s[0] === 'mg' && n > 999 ? '--' : String(n), x + 28, H - 24, 15, low ? '#ff5a6a' : s[0] === 'mg' && n < 30 ? '#ffd24a' : '#ffffff', 'left', 800);
       if (!touch) txt(ctx, s[2], x + sw / 2, H - 10, 8, '#7f95b8', 'center', 800);
     });
+    /* the turbo meter, just above the gadget row */
+    {
+      const bw = 170, bx2 = W / 2 - bw / 2 + 18, by = H - 58, fl = g.hudFlash.turbo > 0 && Math.floor(g.time * 12) % 2, frac = P.tb / 100;
+      ctx.fillStyle = 'rgba(2,4,18,0.62)'; ctx.fillRect(bx2 - 62, by - 5, bw + 70, 14);
+      txt(ctx, 'TURBO', bx2 - 6, by + 6, 9, P.tbLock ? '#ff5a6a' : '#ffb05a', 'right', 800);
+      ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(bx2, by, bw, 8);
+      ctx.fillStyle = P.tbLock ? (fl ? '#ffffff' : '#ff4a6a') : P.tbOn ? '#fff2b0' : frac >= 1 ? '#7ee8ff' : '#ff9a3c';
+      ctx.fillRect(bx2, by, bw * frac, 8);
+      ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(bx2 + bw * 0.35 - 1, by - 1, 1.5, 10);
+      if (!touch) txt(ctx, 'SHIFT / W', bx2 + bw + 4, by + 7, 8, '#7f95b8', 'left', 800);
+    }
+    if (P.offT > 0.05 && P.mode === 'car' && Math.floor(g.time * 10) % 2) txt(ctx, 'OFF THE ROAD!  STEER BACK', W / 2, 130, 17, '#ff6a6a', 'center', 900, 'rgba(255,40,60,0.8)');
     HUD.banner(ctx, g);
     if (g.truck && g.truck.state === 'shop') txt(ctx, 'SUPPLY TRUCK', W / 2, 120, 18, '#ff7a82', 'center', 900, 'rgba(255,60,70,0.8)');
   };
@@ -127,7 +139,7 @@
     const col = 'rgba(160,215,255,0.8)';
     ctx.save();
     txt(ctx, 'SPY SPACE HUNTER', cx1, top, 15 * sc, '#ffffff', 'center', 900, 'rgba(255,90,210,0.9)');
-    const help = ['STEER', '← →  /  A D  /  MOUSE', 'MACHINE GUN', 'SPACE  /  LEFT CLICK', 'OIL / MINE   SMOKE', 'Z   X', 'MISSILE   EMP   SHIELD', 'C   V   B', 'PAUSE', 'P  /  ESC'];
+    const help = ['STEER', '← →  /  A D  /  MOUSE', 'MACHINE GUN', 'SPACE  /  LEFT CLICK', 'TURBO (HOLD)', 'SHIFT  /  W  /  ↑', 'OIL / MINE   SMOKE', 'Z   X', 'MISSILE   EMP   SHIELD', 'C   V   B', 'PAUSE', 'P  /  ESC'];
     help.forEach((s, i) => txt(ctx, s, cx1, top + 44 * sc + i * 20 * sc, (i % 2 ? 12 : 10) * sc, i % 2 ? col : '#ff7ad9', 'center', i % 2 ? 700 : 800));
     txt(ctx, 'TOP DRIVERS', cx2, top, 15 * sc, '#ffffff', 'center', 900, 'rgba(255,90,210,0.9)');
     G.scores.list.slice(0, 7).forEach((r, i) => txt(ctx, (i + 1) + '. ' + r.name + '  ' + U.fmt(r.score), cx2, top + 34 * sc + i * 22 * sc, 13 * sc, i === 0 ? '#ffd24a' : col, 'center', 700));
