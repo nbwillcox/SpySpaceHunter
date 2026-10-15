@@ -101,8 +101,17 @@
   };
   /* the car inside the trailer is drawn over the truck */
   T.drawInside = function (ctx, g) {
-    const P = g.player;
-    if (!g.truck || !P.docked || !P.alive) return;
-    GFX.draw(ctx, P.mode === 'boat' ? GFX.spr.pboat : GFX.spr.sport, P.x, P.y, 0, 0.95, 0.95);
+    const P = g.player, tk = g.truck;
+    if (!tk || !P.docked || !P.alive) return;
+    const img = P.mode === 'boat' ? GFX.spr.pboat : GFX.spr.sport;
+    if (tk.kind === 'barge') { GFX.draw(ctx, img, P.x, P.y, 0, 0.95, 0.95); return; }          /* the barge deck is open: the boat just sits on it */
+    const door = tk.y + CAB + GAP + TRL - 9;                                                    /* where the roof ends and the rear doorway begins */
+    ctx.save(); ctx.beginPath(); ctx.rect(0, door, W, H + 400); ctx.clip();                      /* on the ramp and in the doorway the car is visible... */
+    GFX.draw(ctx, img, P.x, P.y, 0, 0.95, 0.95); ctx.restore();
+    if (P.y - 27 < door) {                                                                      /* ...then it drives under the roof, leaving a faint glowing silhouette */
+      ctx.save(); ctx.beginPath(); ctx.rect(0, -60, W, door + 60); ctx.clip(); ctx.globalCompositeOperation = 'lighter';
+      GFX.drawGlow(ctx, 'rgba(90,230,255,1)', P.x, P.y, 46, 0.16 + 0.07 * Math.sin(g.time * 4));
+      GFX.draw(ctx, img, P.x, P.y, 0, 0.95, 0.95, 0.24); ctx.restore();
+    }
   };
 })((window.SGS = window.SGS || {}));

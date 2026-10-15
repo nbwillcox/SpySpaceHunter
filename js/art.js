@@ -160,11 +160,13 @@
     wheels(c, w + 2, [hh - 38, hh - 22], 15);
     c.save(); c.shadowColor = 'rgba(255,60,70,0.75)'; c.shadowBlur = 9; c.fillStyle = '#26202c'; rr(c, -hw, -hh, w, h, 3); c.fill(); c.restore();
     c.fillStyle = '#b3141f'; rr(c, -hw, -hh, w, h, 3); c.fill();
-    c.fillStyle = lg(c, -hw, 0, hw, 0, [[0, '#2a2f44'], [0.5, '#161a2c'], [1, '#2a2f44']]); rr(c, -hw + 4, -hh + 4, w - 8, h - 8, 2); c.fill();      // open cargo bed
-    c.strokeStyle = 'rgba(120,140,190,0.35)'; c.lineWidth = 1; for (let y = -hh + 12; y < hh - 6; y += 12) { c.beginPath(); c.moveTo(-hw + 5, y); c.lineTo(hw - 5, y); c.stroke(); }
-    c.fillStyle = '#e8ecf8'; mirror(c, (k) => { for (let y = -hh + 2; y < hh - 4; y += 16) k.fillRect(hw - 4, y, 3, 8); });                  // side stripes
-    c.fillStyle = '#ffd24a'; for (let i = 0; i < 6; i++) c.fillRect(-hw + 4 + i * 7, hh - 3, 4, 2);                                           // tail gate
-    c.save(); c.shadowColor = 'rgba(255,40,60,0.95)'; c.shadowBlur = 7; c.fillStyle = '#ff2a3a'; mirror(c, (k) => rr(k, hw - 8, hh - 3, 6, 2.6, 1)); c.restore();
+    c.fillStyle = lg(c, -hw, 0, hw, 0, [[0, '#8a93ac'], [0.5, '#cfd5e6'], [1, '#8a93ac']]); rr(c, -hw + 3, -hh + 3, w - 6, h - 6, 2); c.fill();         // a closed steel roof
+    c.strokeStyle = 'rgba(40,48,86,0.55)'; c.lineWidth = 1; for (let y = -hh + 10; y < hh - 12; y += 14) { c.beginPath(); c.moveTo(-hw + 4, y); c.lineTo(hw - 4, y); c.stroke(); }
+    c.fillStyle = 'rgba(255,255,255,0.4)'; c.fillRect(-1, -hh + 5, 2, h - 20);
+    c.fillStyle = '#e8ecf8'; mirror(c, (k) => { for (let y = -hh + 2; y < hh - 12; y += 16) k.fillRect(hw - 4, y, 3, 8); });                  // side stripes
+    c.fillStyle = '#05060b'; rr(c, -17, hh - 9, 34, 9, 2); c.fill();                                                                           // the open rear doorway
+    c.strokeStyle = '#ffd24a'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(-17, hh - 9); c.lineTo(17, hh - 9); c.stroke();
+    c.save(); c.shadowColor = 'rgba(255,40,60,0.95)'; c.shadowBlur = 7; c.fillStyle = '#ff2a3a'; mirror(c, (k) => rr(k, hw - 5, hh - 3, 4, 2.6, 1)); c.restore();
   }
   function drawRamp(c) {
     const w = 38, h = 34, hw = 19;

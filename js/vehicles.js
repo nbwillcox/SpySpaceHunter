@@ -62,7 +62,7 @@
   V.skid = skid;
 
   /* ---------- AI ---------- */
-  const follow = (e, tx, gain, max) => { e.wantVx = U.clamp((tx - e.x) * gain, -max, max); };
+  const follow = (e, tx, gain, max) => { e.wantVx = U.clamp((U.clamp(tx, L + 16, R - 16) - e.x) * gain, -max, max); };   /* never aim for a spot off the road */
   function ahead(g, e) {                                                  /* the nearest slower vehicle in my lane just ahead (smaller y) */
     let best = null;
     for (const o of g.en) { if (o === e || o.dead || o.air || o.crash || Math.abs(o.x - e.x) > 26 || o.y >= e.y || e.y - o.y > e.h / 2 + o.h / 2 + 38) continue; if (!best || o.y > best.y) best = o; }
@@ -74,7 +74,7 @@
       const o = ahead(g, e); if (o) e.evT = Math.min(e.evT, o.ev - 4);
       e.wantVx = (e.laneT === undefined ? 0 : U.clamp((e.laneT - e.x) * 2, -70, 70));
       e.cd -= dt;
-      if (e.cd <= 0) { e.cd = U.rand(4, 9); if (U.chance(0.25)) e.laneT = e.x + U.pick([-C.LANE_W, C.LANE_W]); }
+      if (e.cd <= 0) { e.cd = U.rand(4, 9); if (U.chance(0.25)) { const nl = e.x + U.pick([-C.LANE_W, C.LANE_W]); if (nl > L + 22 && nl < R - 22) e.laneT = nl; } }     /* only ever into another lane of the road */
       if (e.laneT !== undefined && Math.abs(e.laneT - e.x) < 3) e.laneT = undefined;
     },
     sedan(g, e, dt) {                                                      /* a bumper-car ram: get alongside, then swing in */
@@ -119,7 +119,7 @@
     bike(g, e, dt) {
       const P = g.player, dy = e.y - P.y;
       e.evT = g.cruise * 1.5;
-      e.wantVx = U.clamp((P.x - e.x) * 1.2 + Math.sin(e.t * 3 + e.seed) * 50, -120, 120);
+      e.wantVx = U.clamp((U.clamp(P.x, L + 20, R - 20) - e.x) * 1.2 + Math.sin(e.t * 3 + e.seed) * 50, -120, 120);
       if (dy < -80) e.wantVx *= 0.3;
     },
     heli(g, e, dt) { airAI(g, e, dt, false); },
@@ -188,8 +188,23 @@
     A.sfx.skid();
   }
 
+  /* the supply truck is solid: traffic swerves around it, and is never allowed to pass through it */
+  function avoidTruck(e, tk, dt) {
+    let hit = false;
+    for (const b of G.truck.boxes(tk)) {
+      const hw = (b.w + e.w) / 2 + 10;
+      if (Math.abs(e.x - b.x) >= hw || Math.abs(e.y - b.y) >= (b.h + e.h) / 2 + 36) continue;
+      hit = true;
+      if (!e.dodge) { let s = e.x >= b.x ? 1 : -1; if (b.x + s * hw > R - 16 || b.x + s * hw < L + 16) s = -s; e.dodge = s; }
+      e.wantVx = e.dodge * 150;
+      if (Math.abs(e.x - b.x) < hw - 8 && Math.abs(e.y - b.y) < (b.h + e.h) / 2) e.x = U.clamp(e.x + e.dodge * 150 * dt, L + 14, R - 14);
+    }
+    if (hit) e.x = U.clamp(e.x, L + 14, R - 14); else e.dodge = 0;                                 /* swerving never takes it off the road */
+  }
+
   V.update = function (g, dt) {
-    const P = g.player, water = g.surface === 'water';
+    const P = g.player, water = g.surface === 'water', tk = g.truck;
+    const docking = P.docked || (tk && (tk.state === 'enter' || tk.state === 'pull' || tk.state === 'shop'));
     for (const e of g.en) {
       if (e.dead) continue;
       e.t += dt; if (e.flash > 0) e.flash -= dt; if (e.blind > 0) e.blind -= dt; if (e.stun > 0) e.stun -= dt;
@@ -205,7 +220,10 @@
         if (e.loss <= 0) { e.spin = 0; }
       } else {
         e.ang += (0 - e.ang) * Math.min(1, 7 * dt);
-        if (e.stun > 0) { e.evT = e.ev * 0.97; e.wantVx = 0; } else if (AI[e.kind]) AI[e.kind](g, e, dt); else AI.civ(g, e, dt);
+        if (e.stun > 0) { e.evT = e.ev * 0.97; e.wantVx = 0; }
+        else if (docking && !e.obst) { e.evT = g.cruise * (e.team === 'civ' ? e.rate : 0.7); e.wantVx = 0; e.blades = false; e.x = U.clamp(e.x, L + 14, R - 14); }        /* while you are in the truck, traffic keeps to its lane and ignores you */
+        else if (AI[e.kind]) AI[e.kind](g, e, dt); else AI.civ(g, e, dt);
+        if (tk && !e.obst) avoidTruck(e, tk, dt);
         e.ev += (e.evT - e.ev) * Math.min(1, 2.2 * dt);
         e.vx += (e.wantVx - e.vx) * Math.min(1, 4 * dt);
       }
