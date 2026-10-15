@@ -8,6 +8,8 @@ Everything is generated in code: the cars, boats, trucks and scenery are vector-
 
 ## Controls
 
+These are the defaults. **Every key can be changed** in Settings > Controls: click a key box, press the key you want (each action has two boxes). Choosing a key that is already used swaps the two actions, `Esc` cancels, `Backspace` clears a box, and *Reset keys* restores the defaults. Bindings are saved in your browser. Settings > Controls also has steering sensitivity, mouse steering on/off, and a hold / toggle choice for the turbo.
+
 | Action | Keys |
 | --- | --- |
 | Steer | `←` `→` or `A` `D`, or move the mouse |

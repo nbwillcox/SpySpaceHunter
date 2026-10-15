@@ -44,6 +44,32 @@ button:active { transform: translateY(1px) scale(0.99); }
 input[type="range"] { width: 180px; accent-color: var(--cyan); }
 input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--pink); }
 
+/* controls section of the settings screen */
+#settings .panel { min-width: min(540px, 94vw); }
+.ctl-set { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; padding-top: 12px; border-top: 1px solid rgba(143, 216, 255, 0.25); }
+.ctl-set h3 { margin: 0; font-size: 12px; letter-spacing: 0.22em; color: #8fd8ff; font-weight: 800; }
+.keyhead, .keyrow { display: grid; grid-template-columns: 1fr 104px 104px; gap: 8px; align-items: center; }
+.keyhead { font-size: 10px; letter-spacing: 0.2em; color: #6f86a8; font-weight: 800; padding-bottom: 2px; }
+.keyhead span:nth-child(n+2) { text-align: center; }
+#keyRows { display: flex; flex-direction: column; gap: 6px; }
+.keyrow .nm { font-size: 14px; letter-spacing: 0.03em; }
+button.keybtn { padding: 9px 6px; font-size: 13px; letter-spacing: 0.08em; min-height: 38px; background: rgba(10, 20, 50, 0.85); border-color: rgba(143, 216, 255, 0.45); }
+button.keybtn.empty { color: #6f86a8; border-style: dashed; }
+button.keybtn.listening { color: #ffd24a; border-color: #ffd24a; box-shadow: 0 0 16px rgba(255, 210, 74, 0.6); animation: keyblink 0.9s ease-in-out infinite; }
+@keyframes keyblink { 50% { background: rgba(255, 210, 74, 0.16); } }
+.keyfoot { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+.keyfoot button { padding: 9px 14px; font-size: 12px; }
+.keyfoot button:disabled { opacity: 0.4; cursor: default; box-shadow: none; transform: none; }
+#keyMsg { font-size: 12px; color: #8fd8ff; letter-spacing: 0.02em; }
+#keyMsg.bad { color: #ff7a8a; }
+.ctl-note { margin: 0; font-size: 12px; line-height: 1.6; color: #8fa6c8; }
+.ctl-note b { color: var(--cyan); }
+.touchonly { display: none; }
+body.touch .kbonly { display: none; }
+body.touch .touchonly { display: block; }
+.hintlink { color: #6f86a8; }
+@media (prefers-reduced-motion: reduce) { button.keybtn.listening { animation: none; } }
+
 .scorelist { list-style: none; margin: 0; padding: 14px 22px; min-width: min(380px, 90vw); background: rgba(8, 14, 36, 0.78); border: 1px solid rgba(55, 230, 255, 0.35); border-radius: 6px; counter-reset: r; }
 .scorelist li { counter-increment: r; display: grid; grid-template-columns: 2.2em 3.6em 1fr auto; gap: 8px; padding: 6px 0; font-size: 17px; font-variant-numeric: tabular-nums; text-align: left; color: #bcd8f5; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
 .scorelist li::before { content: counter(r) "."; color: #ff5d8f; font-weight: 800; }

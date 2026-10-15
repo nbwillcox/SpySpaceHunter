@@ -90,7 +90,8 @@
     }
     /* the gadget row */
     const boat = P.mode === 'boat';
-    const slots = [['mg', 'mg', 'SPACE', P.ammo.mg], ['missile', 'missile', 'C', P.ammo.missile], ['oil', boat ? 'mine' : 'oil', 'Z', P.ammo.oil], ['smoke', 'smoke', 'X', P.ammo.smoke], ['emp', 'emp', 'V', P.ammo.emp], ['shield', 'shield', 'B', P.ammo.shield]];
+    const K = G.input.hint;
+    const slots = [['mg', 'mg', K('fire'), P.ammo.mg], ['missile', 'missile', K('missile'), P.ammo.missile], ['oil', boat ? 'mine' : 'oil', K('oil'), P.ammo.oil], ['smoke', 'smoke', K('smoke'), P.ammo.smoke], ['emp', 'emp', K('emp'), P.ammo.emp], ['shield', 'shield', K('shield'), P.ammo.shield]];
     const sw = 60, x0 = W / 2 - slots.length * sw / 2;
     ctx.fillStyle = 'rgba(2,4,18,0.62)'; ctx.fillRect(x0 - 4, H - 46, slots.length * sw + 8, 42);
     slots.forEach((s, i) => {
@@ -109,7 +110,7 @@
       ctx.fillStyle = P.tbLock ? (fl ? '#ffffff' : '#ff4a6a') : P.tbOn ? '#fff2b0' : frac >= 1 ? '#7ee8ff' : '#ff9a3c';
       ctx.fillRect(bx2, by, bw * frac, 8);
       ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(bx2 + bw * 0.35 - 1, by - 1, 1.5, 10);
-      if (!touch) txt(ctx, 'SHIFT / W', bx2 + bw + 4, by + 7, 8, '#7f95b8', 'left', 800);
+      if (!touch) txt(ctx, G.input.label('turbo'), bx2 + bw + 4, by + 7, 8, '#7f95b8', 'left', 800);
     }
     if (P.offT > 0.05 && P.mode === 'car' && Math.floor(g.time * 10) % 2) txt(ctx, 'OFF THE ROAD!  STEER BACK', W / 2, 130, 17, '#ff6a6a', 'center', 900, 'rgba(255,40,60,0.8)');
     HUD.banner(ctx, g);
@@ -139,7 +140,9 @@
     const col = 'rgba(160,215,255,0.8)';
     ctx.save();
     txt(ctx, 'SPY SPACE HUNTER', cx1, top, 15 * sc, '#ffffff', 'center', 900, 'rgba(255,90,210,0.9)');
-    const help = ['STEER', '← →  /  A D  /  MOUSE', 'MACHINE GUN', 'SPACE  /  LEFT CLICK', 'TURBO (HOLD)', 'SHIFT  /  W  /  ↑', 'OIL / MINE   SMOKE', 'Z   X', 'MISSILE   EMP   SHIELD', 'C   V   B', 'PAUSE', 'P  /  ESC'];
+    const In = G.input, tg = G.settings.turboToggle;
+    const help = ['STEER', In.steerText(), 'MACHINE GUN', In.label('fire') + '  /  LEFT CLICK', tg ? 'TURBO (TOGGLE)' : 'TURBO (HOLD)', In.label('turbo'), 'OIL / MINE   SMOKE', In.hint('oil') + '   ' + In.hint('smoke'),
+      'MISSILE   EMP   SHIELD', In.hint('missile') + '   ' + In.hint('emp') + '   ' + In.hint('shield'), 'PAUSE', In.label('pause')];
     help.forEach((s, i) => txt(ctx, s, cx1, top + 44 * sc + i * 20 * sc, (i % 2 ? 12 : 10) * sc, i % 2 ? col : '#ff7ad9', 'center', i % 2 ? 700 : 800));
     txt(ctx, 'TOP DRIVERS', cx2, top, 15 * sc, '#ffffff', 'center', 900, 'rgba(255,90,210,0.9)');
     G.scores.list.slice(0, 7).forEach((r, i) => txt(ctx, (i + 1) + '. ' + r.name + '  ' + U.fmt(r.score), cx2, top + 34 * sc + i * 22 * sc, 13 * sc, i === 0 ? '#ffd24a' : col, 'center', 700));
@@ -152,7 +155,7 @@
   let sideCache = null, sideKey = '';
   HUD.sides = function (ctx, v, g) {
     if (v.ox < 150) return;
-    const key = [v.w, v.h, v.rs.toFixed(2), Math.round(v.ox), Math.round(v.oy), v.s.toFixed(3), G.scores.list.slice(0, 7).map((r) => r.name + r.score).join(',')].join('|');
+    const key = [v.w, v.h, v.rs.toFixed(2), Math.round(v.ox), Math.round(v.oy), v.s.toFixed(3), G.scores.list.slice(0, 7).map((r) => r.name + r.score).join(','), G.input.version, G.settings.mouseSteer].join('|');
     if (key !== sideKey || !sideCache) {
       sideKey = key;
       const pw = Math.round(v.ox * v.rs), ph = Math.round(v.h * v.rs);
