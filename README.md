@@ -31,6 +31,10 @@ The car cruises by itself: there is no gas or brake, but you do have a **turbo**
 
 Play in portrait. A floating thumb-stick on the left steers, **FIRE** (hold) is the machine gun, **TURBO** (hold) zips you away from trouble, and small buttons on the right are the missile, oil / mines, smoke, EMP and shield. The pause button opens the menu. The on-screen controls appear on touch devices automatically; Settings has size, opacity and a left-handed layout. Use your browser's *Add to Home Screen* to install it as a full-screen app.
 
+### Controller
+
+Plug in a gamepad and it just works: the left stick steers (analog), **A / RT** is the machine gun, **B / LT** is turbo, **X** missile, **Y** oil / mines, the D-pad is smoke / EMP / shield, **LB / RB** bump, **Start** pauses. In menus the D-pad / left stick moves the highlight, **A** selects, **B** goes back and **Start** plays or resumes. **Settings -> Controller** has a dead-zone slider and lets you remap every button.
+
 ## Gameplay
 
 - **Score** comes from enemy vehicles knocked off the road or destroyed, plus 1 point for every second you survive. Credits (spent at the supply truck) are earned the same way.
